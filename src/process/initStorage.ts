@@ -7,7 +7,7 @@
 import { mkdirSync as _mkdirSync, existsSync, readdirSync, readFileSync } from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
-import { app } from 'electron';
+import { app } from '@/platform/electron';
 import { application } from '../common/ipcBridge';
 import type { TMessage } from '@/common/chatLib';
 import { ASSISTANT_PRESETS } from '@/common/presets/assistantPresets';
@@ -523,7 +523,7 @@ const getBuiltinAssistants = (): AcpBackendConfig[] => {
     // 从预设配置中读取默认启用的技能列表（不包含 cron，因为它是内置 skill，自动注入）
     // Read default enabled skills from preset config (excluding cron, which is builtin and auto-injected)
     const defaultEnabledSkills = preset.defaultEnabledSkills;
-    const enabledByDefault = preset.id === 'cowork' || preset.id === 'openclaw-setup';
+    const enabledByDefault = preset.id === 'cowork';
 
     assistants.push({
       id: `builtin-${preset.id}`,
@@ -632,8 +632,14 @@ const initStorage = async () => {
 
     // 更新或添加内置助手配置
     // Update or add built-in assistant configurations
-    const updatedAgents = [...existingAgents];
-    let hasChanges = false;
+    const builtinAssistantIdSet = new Set(builtinAssistants.map((assistant) => assistant.id));
+    const updatedAgents = existingAgents.filter((assistant: AcpBackendConfig) => {
+      if (!assistant.isBuiltin) {
+        return true;
+      }
+      return builtinAssistantIdSet.has(assistant.id);
+    });
+    let hasChanges = updatedAgents.length !== existingAgents.length;
 
     for (const builtin of builtinAssistants) {
       const index = updatedAgents.findIndex((a: AcpBackendConfig) => a.id === builtin.id);

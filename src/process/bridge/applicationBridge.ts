@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { app } from 'electron';
+import { app } from '@/platform/electron';
 import { ipcBridge } from '../../common';
 import { getSystemDir, ProcessEnv } from '../initStorage';
 import { copyDirectoryRecursively } from '../utils';
@@ -13,9 +13,8 @@ import { getZoomFactor, setZoomFactor } from '../utils/zoom';
 
 export function initApplicationBridge(): void {
   ipcBridge.application.restart.provider(() => {
-    // 清理所有工作进程
-    WorkerManage.clear();
-    // 重启应用 - 使用标准的 Electron 重启方式
+    // 清理所有工作进�?    WorkerManage.clear();
+    // 重启应用 - 使用标准�?Electron 重启方式
     app.relaunch();
     app.exit(0);
     return Promise.resolve();

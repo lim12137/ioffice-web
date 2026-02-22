@@ -12,7 +12,7 @@
  * Handles window minimize, maximize, close and other control operations
  */
 
-import { BrowserWindow } from 'electron';
+import { BrowserWindow } from '@/platform/electron';
 import { ipcBridge } from '@/common';
 
 /**
@@ -34,11 +34,9 @@ export function registerWindowMaximizeListeners(window: BrowserWindow): void {
 }
 
 /**
- * 初始化窗口控制桥接
- * Initialize window controls bridge
+ * 初始化窗口控制桥�? * Initialize window controls bridge
  *
- * 注册 IPC 处理器以响应来自渲染进程的窗口控制请求
- * Register IPC handlers to respond to window control requests from renderer process
+ * 注册 IPC 处理器以响应来自渲染进程的窗口控制请�? * Register IPC handlers to respond to window control requests from renderer process
  */
 export function initWindowControlsBridge(): void {
   // 最小化窗口 / Minimize window
@@ -77,7 +75,7 @@ export function initWindowControlsBridge(): void {
     return Promise.resolve();
   });
 
-  // 获取窗口是否最大化状态 / Get window maximized state
+  // 获取窗口是否最大化状�?/ Get window maximized state
   ipcBridge.windowControls.isMaximized.provider(() => {
     const window = BrowserWindow.getFocusedWindow();
     return Promise.resolve(window?.isMaximized() ?? false);

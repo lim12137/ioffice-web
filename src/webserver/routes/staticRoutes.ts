@@ -8,7 +8,7 @@ import type { Express, Request, Response } from 'express';
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
-import { app } from 'electron';
+import { app } from '@/platform/electron';
 import { TokenMiddleware } from '@/webserver/auth/middleware/TokenMiddleware';
 import { AUTH_CONFIG } from '../config/constants';
 import { createRateLimiter } from '../middleware/security';
@@ -39,8 +39,7 @@ export function registerStaticRoutes(app: Express): void {
   // 为静态页面请求创建宽松的速率限制器以防止 DDoS 攻击
   const pageRateLimiter = createRateLimiter({
     windowMs: 60 * 1000, // 1 minute / 1分钟
-    max: 300, // 300 requests per minute (very lenient) / 每分钟300次请求（非常宽松）
-    message: 'Too many requests, please try again later',
+    max: 300, // 300 requests per minute (very lenient) / 每分�?00次请求（非常宽松�?    message: 'Too many requests, please try again later',
   });
 
   const serveApplication = (req: Request, res: Response) => {
@@ -80,7 +79,7 @@ export function registerStaticRoutes(app: Express): void {
   });
 
   /**
-   * 处理子路径路由 (React Router)
+   * 处理子路径路�?(React Router)
    * Handle SPA sub-routes (React Router)
    * Exclude: api, static, main_window, and webpack chunk directories (react, arco, vendors, etc.)
    * Also exclude files with extensions (.js, .css, .map, etc.)
@@ -88,11 +87,9 @@ export function registerStaticRoutes(app: Express): void {
   app.get(/^\/(?!api|static|main_window|react|arco|vendors|markdown|codemirror)(?!.*\.[a-zA-Z0-9]+$).*/, pageRateLimiter, serveApplication);
 
   /**
-   * 静态资源
-   * Static assets
+   * 静态资�?   * Static assets
    */
-  // 直接挂载编译输出目录，让 webpack 在写出文件后即可被访问
-  app.use(express.static(staticRoot));
+  // 直接挂载编译输出目录，让 webpack 在写出文件后即可被访�?  app.use(express.static(staticRoot));
 
   const mainWindowDir = path.join(staticRoot, 'main_window');
   if (fs.existsSync(mainWindowDir) && fs.statSync(mainWindowDir).isDirectory()) {
@@ -105,8 +102,7 @@ export function registerStaticRoutes(app: Express): void {
   }
 
   /**
-   * React Syntax Highlighter 语言包
-   * React Syntax Highlighter language packs
+   * React Syntax Highlighter 语言�?   * React Syntax Highlighter language packs
    */
   if (fs.existsSync(staticRoot)) {
     app.use(

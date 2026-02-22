@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { app } from 'electron';
+import { app } from '@/platform/electron';
 
 // Force node-gyp-build to skip build/ directory and use prebuilds/ only in production
 // This prevents loading wrong architecture binaries from development environment

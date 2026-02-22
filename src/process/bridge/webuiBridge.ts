@@ -5,7 +5,7 @@
  */
 
 import crypto from 'crypto';
-import { ipcMain } from 'electron';
+import { ipcMain } from '@/platform/electron';
 import { webui } from '@/common/ipcBridge';
 import { AuthService } from '@/webserver/auth/service/AuthService';
 import { UserRepository } from '@/webserver/auth/repository/UserRepository';

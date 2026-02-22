@@ -7,7 +7,7 @@
 import type { ConversionResult, ExcelWorkbookData, PPTJsonData } from '@/common/types/conversion';
 import { DOMParser } from '@xmldom/xmldom';
 import { Document as DocxDocument, Packer, Paragraph, TextRun } from 'docx';
-import { BrowserWindow } from 'electron';
+import { BrowserWindow } from '@/platform/electron';
 import fs from 'fs/promises';
 import mammoth from 'mammoth';
 import PPTX2Json from 'pptx2json';
@@ -27,7 +27,7 @@ class ConversionService {
 
   /**
    * Word (.docx) -> Markdown
-   * 将 Word 文档转换为 Markdown
+   * �?Word 文档转换�?Markdown
    */
   public async wordToMarkdown(filePath: string): Promise<ConversionResult<string>> {
     try {
@@ -44,16 +44,14 @@ class ConversionService {
 
   /**
    * Markdown -> Word (.docx)
-   * 将 Markdown 转换为 Word 文档
+   * �?Markdown 转换�?Word 文档
    * Note: This is a basic implementation. For complex markdown, we might need a better parser.
-   * 注意：这是一个基础实现。对于复杂的 Markdown，可能需要更好的解析器。
-   */
+   * 注意：这是一个基础实现。对于复杂的 Markdown，可能需要更好的解析器�?   */
   public async markdownToWord(markdown: string, targetPath: string): Promise<ConversionResult<void>> {
     try {
       // Simple implementation: split by newlines and create paragraphs
-      // 简单实现：按行分割并创建段落
-      // TODO: Use a proper Markdown parser to generate Docx structure
-      // TODO: 使用合适的 Markdown 解析器生成 Docx 结构
+      // 简单实现：按行分割并创建段�?      // TODO: Use a proper Markdown parser to generate Docx structure
+      // TODO: 使用合适的 Markdown 解析器生�?Docx 结构
       const lines = markdown.split('\n');
       const children = lines.map(
         (line) =>
@@ -82,7 +80,7 @@ class ConversionService {
 
   /**
    * Excel (.xlsx) -> JSON
-   * 将 Excel 文件转换为 JSON 数据
+   * �?Excel 文件转换�?JSON 数据
    */
   public async excelToJson(filePath: string): Promise<ConversionResult<ExcelWorkbookData>> {
     try {
@@ -110,7 +108,7 @@ class ConversionService {
 
   /**
    * JSON -> Excel (.xlsx)
-   * 将 JSON 数据转换为 Excel 文件
+   * �?JSON 数据转换�?Excel 文件
    */
   public async jsonToExcel(data: ExcelWorkbookData, targetPath: string): Promise<ConversionResult<void>> {
     try {
@@ -135,7 +133,7 @@ class ConversionService {
 
   /**
    * PowerPoint (.pptx) -> JSON
-   * 将 PowerPoint 文件转换为 JSON 结构
+   * �?PowerPoint 文件转换�?JSON 结构
    * Converts PowerPoint file to JSON structure including slides, images, and layouts
    */
   public async pptToJson(filePath: string): Promise<ConversionResult<PPTJsonData>> {
@@ -145,11 +143,10 @@ class ConversionService {
 
       console.log('[ConversionService] pptx2json raw result keys:', Object.keys(json));
 
-      // 提取幻灯片信息 / Extract slide information
+      // 提取幻灯片信�?/ Extract slide information
       const slides = [];
 
-      // 尝试多种可能的路径结构
-      const possiblePaths = ['ppt/slides', 'ppt\\slides', 'slides'];
+      // 尝试多种可能的路径结�?      const possiblePaths = ['ppt/slides', 'ppt\\slides', 'slides'];
 
       let slidesData: any = null;
       for (const path of possiblePaths) {
@@ -160,13 +157,12 @@ class ConversionService {
         }
       }
 
-      // 如果上面的路径都找不到，尝试查找所有包含 'slide' 的键
+      // 如果上面的路径都找不到，尝试查找所有包�?'slide' 的键
       if (!slidesData) {
         const allKeys = Object.keys(json);
         console.log('[ConversionService] All keys in json:', allKeys);
 
-        // 查找所有以 slide 开头的键
-        const slideKeys = allKeys.filter((key) => key.toLowerCase().includes('slide') && key.endsWith('.xml'));
+        // 查找所有以 slide 开头的�?        const slideKeys = allKeys.filter((key) => key.toLowerCase().includes('slide') && key.endsWith('.xml'));
 
         console.log('[ConversionService] Found slide keys:', slideKeys);
 
@@ -206,8 +202,7 @@ class ConversionService {
   }
 
   /**
-   * 提取 Excel 中的图片资源，并且定位到对应单元格
-   */
+   * 提取 Excel 中的图片资源，并且定位到对应单元�?   */
   private async extractExcelImages(buffer: Buffer): Promise<Record<string, { row: number; col: number; src: string; width?: number; height?: number }[]>> {
     try {
       const fileMap = await this.loadExcelZipEntries(buffer);
@@ -475,10 +470,9 @@ class ConversionService {
 
   /**
    * HTML -> PDF
-   * 将 HTML 转换为 PDF
+   * �?HTML 转换�?PDF
    * Uses a hidden BrowserWindow to render and print
-   * 使用隐藏的 BrowserWindow 进行渲染和打印
-   */
+   * 使用隐藏�?BrowserWindow 进行渲染和打�?   */
   public async htmlToPdf(html: string, targetPath: string): Promise<ConversionResult<void>> {
     let win: BrowserWindow | null = null;
     try {
@@ -527,7 +521,7 @@ class ConversionService {
 
   /**
    * Markdown -> PDF
-   * 将 Markdown 转换为 PDF
+   * �?Markdown 转换�?PDF
    */
   public async markdownToPdf(markdown: string, targetPath: string): Promise<ConversionResult<void>> {
     try {
@@ -549,7 +543,7 @@ class ConversionService {
 
       // Let's fallback to simple text wrapping for now, or ask user to install 'marked'.
       // Given the constraints, I'll implement a very basic text-to-html wrapper.
-      // 简单转换：目前使用 pre 标签包裹，建议后续集成 marked 等库
+      // 简单转换：目前使用 pre 标签包裹，建议后续集�?marked 等库
 
       const html = `<pre style="white-space: pre-wrap; font-family: monospace;">${markdown}</pre>`;
       return await this.htmlToPdf(html, targetPath);

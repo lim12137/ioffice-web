@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { app } from 'electron';
+import { app } from '@/platform/electron';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import type { AcpBackendAll } from '@/types/acpTypes';

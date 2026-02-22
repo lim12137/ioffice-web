@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BrowserWindow, dialog } from 'electron';
+import { BrowserWindow, dialog } from '@/platform/electron';
 import { ipcBridge } from '../../common';
 
 export function initDialogBridge(): void {

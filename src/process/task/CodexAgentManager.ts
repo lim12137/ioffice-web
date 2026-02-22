@@ -74,7 +74,7 @@ class CodexAgentManager extends BaseAgentManager<CodexAgentManagerData> implemen
     this.bootstrap = (async () => {
       // 设置 Codex Agent 的应用配置，使用 Electron API 在主进程中
       try {
-        const electronModule = await import('electron');
+        const electronModule = await import('@/platform/electron');
         const app = electronModule.app;
         setAppConfig({
           name: app.getName(),

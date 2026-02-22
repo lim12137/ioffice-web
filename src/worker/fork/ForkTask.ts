@@ -11,8 +11,8 @@
  */
 
 import { uuid } from '@/renderer/utils/common';
-import type { UtilityProcess } from 'electron';
-import { app, utilityProcess } from 'electron';
+import type { UtilityProcess } from '@/platform/electron';
+import { app, utilityProcess } from '@/platform/electron';
 import { Pipe } from './pipe';
 
 /**

@@ -5,8 +5,8 @@
  */
 
 import { ipcBridge } from '@/common';
-import type { MenuItemConstructorOptions } from 'electron';
-import { Menu, app } from 'electron';
+import type { MenuItemConstructorOptions } from '@/platform/electron';
+import { Menu, app } from '@/platform/electron';
 
 export function setupApplicationMenu(): void {
   const isMac = process.platform === 'darwin';

@@ -9,7 +9,7 @@ import type { TMessage } from '@/common/chatLib';
 import { uuid } from '@/common/utils';
 import { getDatabase } from '@process/database';
 import { addMessage } from '@process/message';
-import { powerSaveBlocker } from 'electron';
+import { powerSaveBlocker } from '@/platform/electron';
 import { Cron } from 'croner';
 import WorkerManage from '../../WorkerManage';
 import { copyFilesToDirectory } from '../../utils';
@@ -330,9 +330,8 @@ class CronService {
       // Get or build task from WorkerManage
       // For cron jobs, we need yoloMode=true (auto-approve)
       // Reuse existing task if possible to avoid unnecessary reconnection
-      // 对于定时任务，需要 yoloMode=true（自动批准）
-      // 尽量复用已有任务实例，避免不必要的重连
-      let task;
+      // 对于定时任务，需�?yoloMode=true（自动批准）
+      // 尽量复用已有任务实例，避免不必要的重�?      let task;
       try {
         const existingTask = WorkerManage.getTaskById(conversationId);
         if (existingTask) {
@@ -500,7 +499,7 @@ class CronService {
     const scheduledTime = new Date(scheduledAtMs).toLocaleString();
     const msgId = uuid();
 
-    const content = `⏰ Scheduled task "${job.name}" was not executed during system sleep.\nScheduled time: ${scheduledTime}\nThe timer has been restarted and will run at the next scheduled time.`;
+    const content = `�?Scheduled task "${job.name}" was not executed during system sleep.\nScheduled time: ${scheduledTime}\nThe timer has been restarted and will run at the next scheduled time.`;
 
     // Persist message to database
     const message: TMessage = {

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { shell } from 'electron';
+import { shell } from '@/platform/electron';
 import { ipcBridge } from '../../common';
 
 export function initShellBridge(): void {

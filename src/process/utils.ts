@@ -5,7 +5,7 @@
  */
 
 import type { IDirOrFile } from '@/common/ipcBridge';
-import { app } from 'electron';
+import { app } from '@/platform/electron';
 import { existsSync, lstatSync, mkdirSync, readlinkSync, symlinkSync, unlinkSync } from 'fs';
 import fs from 'fs/promises';
 import path from 'path';
