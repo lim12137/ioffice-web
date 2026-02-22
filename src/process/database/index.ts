@@ -413,9 +413,9 @@ export class AionUIDatabase {
     }
   }
 
-  getConversation(conversationId: string): IQueryResult<TChatConversation> {
+  getConversation(conversationId: string, userId?: string): IQueryResult<TChatConversation> {
     try {
-      const row = this.db.prepare('SELECT * FROM conversations WHERE id = ?').get(conversationId) as IConversationRow | undefined;
+      const row = userId ? (this.db.prepare('SELECT * FROM conversations WHERE id = ? AND user_id = ?').get(conversationId, userId) as IConversationRow | undefined) : (this.db.prepare('SELECT * FROM conversations WHERE id = ?').get(conversationId) as IConversationRow | undefined);
 
       if (!row) {
         return {
@@ -544,9 +544,9 @@ export class AionUIDatabase {
     }
   }
 
-  updateConversation(conversationId: string, updates: Partial<TChatConversation>): IQueryResult<boolean> {
+  updateConversation(conversationId: string, updates: Partial<TChatConversation>, userId?: string): IQueryResult<boolean> {
     try {
-      const existing = this.getConversation(conversationId);
+      const existing = this.getConversation(conversationId, userId);
       if (!existing.success || !existing.data) {
         return {
           success: false,
@@ -559,9 +559,25 @@ export class AionUIDatabase {
         ...updates,
         modifyTime: Date.now(),
       } as TChatConversation;
-      const row = conversationToRow(updated, this.defaultUserId);
+      const row = conversationToRow(updated, userId || this.defaultUserId);
 
-      const stmt = this.db.prepare(`
+      const result = userId
+        ? this.db
+            .prepare(
+              `
+        UPDATE conversations
+        SET name       = ?,
+            extra      = ?,
+            model      = ?,
+            status     = ?,
+            updated_at = ?
+        WHERE id = ? AND user_id = ?
+      `
+            )
+            .run(row.name, row.extra, row.model, row.status, row.updated_at, conversationId, userId)
+        : this.db
+            .prepare(
+              `
         UPDATE conversations
         SET name       = ?,
             extra      = ?,
@@ -569,13 +585,13 @@ export class AionUIDatabase {
             status     = ?,
             updated_at = ?
         WHERE id = ?
-      `);
-
-      stmt.run(row.name, row.extra, row.model, row.status, row.updated_at, conversationId);
+      `
+            )
+            .run(row.name, row.extra, row.model, row.status, row.updated_at, conversationId);
 
       return {
         success: true,
-        data: true,
+        data: result.changes > 0,
       };
     } catch (error: any) {
       return {
@@ -585,10 +601,9 @@ export class AionUIDatabase {
     }
   }
 
-  deleteConversation(conversationId: string): IQueryResult<boolean> {
+  deleteConversation(conversationId: string, userId?: string): IQueryResult<boolean> {
     try {
-      const stmt = this.db.prepare('DELETE FROM conversations WHERE id = ?');
-      const result = stmt.run(conversationId);
+      const result = userId ? this.db.prepare('DELETE FROM conversations WHERE id = ? AND user_id = ?').run(conversationId, userId) : this.db.prepare('DELETE FROM conversations WHERE id = ?').run(conversationId);
 
       return {
         success: true,
@@ -631,23 +646,45 @@ export class AionUIDatabase {
     }
   }
 
-  getConversationMessages(conversationId: string, page = 0, pageSize = 100, order = 'ASC'): IPaginatedResult<TMessage> {
+  getConversationMessages(conversationId: string, page = 0, pageSize = 100, order = 'ASC', userId?: string): IPaginatedResult<TMessage> {
     try {
-      const countResult = this.db.prepare('SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?').get(conversationId) as {
-        count: number;
-      };
-
-      const rows = this.db
-        .prepare(
+      const countResult = userId
+        ? (this.db
+            .prepare(
+              `
+            SELECT COUNT(*) as count
+            FROM messages m
+            INNER JOIN conversations c ON c.id = m.conversation_id
+            WHERE m.conversation_id = ? AND c.user_id = ?
           `
+            )
+            .get(conversationId, userId) as { count: number })
+        : (this.db.prepare('SELECT COUNT(*) as count FROM messages WHERE conversation_id = ?').get(conversationId) as { count: number });
+
+      const rows = userId
+        ? (this.db
+            .prepare(
+              `
+            SELECT m.*
+            FROM messages m
+            INNER JOIN conversations c ON c.id = m.conversation_id
+            WHERE m.conversation_id = ? AND c.user_id = ?
+            ORDER BY m.created_at ${order} LIMIT ?
+            OFFSET ?
+          `
+            )
+            .all(conversationId, userId, pageSize, page * pageSize) as IMessageRow[])
+        : (this.db
+            .prepare(
+              `
             SELECT *
             FROM messages
             WHERE conversation_id = ?
             ORDER BY created_at ${order} LIMIT ?
             OFFSET ?
           `
-        )
-        .all(conversationId, pageSize, page * pageSize) as IMessageRow[];
+            )
+            .all(conversationId, pageSize, page * pageSize) as IMessageRow[]);
 
       return {
         data: rows.map(rowToMessage),

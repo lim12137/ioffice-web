@@ -33,12 +33,12 @@ export async function getChannelDefaultModel(_platform: string): Promise<TProvid
 
   // Default fallback
   return {
-    id: 'gemini_default',
-    platform: 'gemini',
-    name: 'Gemini',
-    baseUrl: 'https://generativelanguage.googleapis.com',
+    id: 'openai_default',
+    platform: 'custom',
+    name: 'OpenAI Compatible',
+    baseUrl: 'https://api.openai.com/v1',
     apiKey: '',
-    useModel: 'gemini-2.0-flash',
+    useModel: 'gpt-4o-mini',
   };
 }
 

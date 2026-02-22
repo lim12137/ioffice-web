@@ -247,6 +247,20 @@ export const TokenMiddleware = {
 
   /** 校验 WebSocket token 是否有效 / Validate WebSocket token */
   validateWebSocketToken(token: string | null): boolean {
-    return Boolean(token && AuthService.verifyWebSocketToken(token));
+    return Boolean(this.verifyWebSocketToken(token));
+  },
+
+  verifyWebSocketToken(token: string | null): TokenPayload | null {
+    if (!token) {
+      return null;
+    }
+    const decoded = AuthService.verifyWebSocketToken(token);
+    if (!decoded) {
+      return null;
+    }
+    return {
+      userId: decoded.userId,
+      username: decoded.username,
+    };
   },
 };

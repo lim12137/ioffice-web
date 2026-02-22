@@ -51,6 +51,7 @@ if (win.electronAPI) {
   let reconnectTimer: number | null = null;
   let reconnectDelay = 500;
   let shouldReconnect = true; // Flag to control reconnection
+  let suppressNextCloseReconnect = false; // Used for explicit user-driven reconnect
 
   const messageQueue: QueuedMessage[] = [];
 
@@ -150,6 +151,10 @@ if (win.electronAPI) {
 
     socket.addEventListener('close', () => {
       socket = null;
+      if (suppressNextCloseReconnect) {
+        suppressNextCloseReconnect = false;
+        return;
+      }
       scheduleReconnect();
     });
 
@@ -163,6 +168,31 @@ if (win.electronAPI) {
     if (!socket || socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) {
       connect();
     }
+  };
+
+  // Force a new handshake so switched login cookies apply immediately.
+  const forceReconnect = () => {
+    shouldReconnect = true;
+    reconnectDelay = 500;
+
+    if (reconnectTimer !== null) {
+      window.clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+
+    const currentSocket = socket;
+    socket = null;
+
+    if (currentSocket && (currentSocket.readyState === WebSocket.OPEN || currentSocket.readyState === WebSocket.CONNECTING)) {
+      suppressNextCloseReconnect = true;
+      try {
+        currentSocket.close();
+      } catch {
+        suppressNextCloseReconnect = false;
+      }
+    }
+
+    connect();
   };
 
   bridge.adapter({
@@ -200,9 +230,7 @@ if (win.electronAPI) {
 
   // Expose reconnection control for login flow
   win.__websocketReconnect = () => {
-    shouldReconnect = true;
-    reconnectDelay = 500;
-    connect();
+    forceReconnect();
   };
 }
 

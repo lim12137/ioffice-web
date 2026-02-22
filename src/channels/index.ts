@@ -8,7 +8,7 @@
  * Channel Module
  *
  * Provides remote interaction with AionUi through messaging platforms.
- * MVP: Telegram integration with Gemini Agent.
+ * MVP: Telegram integration with built-in channel agents.
  */
 
 // Export types

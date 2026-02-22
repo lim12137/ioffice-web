@@ -6,6 +6,7 @@
 
 import type { WebSocketServer } from 'ws';
 import { registerWebSocketBroadcaster, getBridgeEmitter } from '../adapter/main';
+import { runWithBridgeRequestContext } from '@/process/bridge/bridgeRequestContext';
 import { WebSocketManager } from './websocket/WebSocketManager';
 
 // 存储取消注册函数，用于服务器停止时清理
@@ -27,16 +28,23 @@ export function initWebAdapter(wss: WebSocketServer): void {
 
   // 注册 WebSocket 广播函数到主适配器
   // Register WebSocket broadcast function to main adapter
-  unregisterBroadcaster = registerWebSocketBroadcaster((name, data) => {
-    wsManager.broadcast(name, data);
+  unregisterBroadcaster = registerWebSocketBroadcaster((name, data, scope) => {
+    wsManager.broadcast(name, data, { userId: scope?.userId });
   });
 
   // 设置 WebSocket 消息处理器，将消息转发到 bridge emitter
   // Setup WebSocket message handler to forward messages to bridge emitter
-  wsManager.setupConnectionHandler((name, data, _ws) => {
+  wsManager.setupConnectionHandler((name, data, clientContext, _ws) => {
     const emitter = getBridgeEmitter();
     if (emitter) {
-      emitter.emit(name, data);
+      runWithBridgeRequestContext(
+        {
+          transport: 'websocket',
+          userId: clientContext.userId,
+          username: clientContext.username,
+        },
+        () => emitter.emit(name, data)
+      );
     }
   });
 }

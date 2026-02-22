@@ -199,9 +199,8 @@ export class ChannelMessageService {
         finishCount: 0,
       });
 
-      // Build payload based on agent type.
-      // Gemini expects { input }, ACP/Codex expect { content }.
-      const payload: { input?: string; content?: string; msg_id: string } = task.type === 'gemini' ? { input: message, msg_id: msgId } : task.type === 'acp' || task.type === 'codex' ? { content: message, msg_id: msgId } : { content: message, msg_id: msgId };
+      // Agents use the shared payload contract: { content, msg_id }.
+      const payload: { content: string; msg_id: string } = { content: message, msg_id: msgId };
 
       task.sendMessage(payload).catch((error: Error) => {
         const errorMessage = `Error: ${error.message || 'Failed to send message'}`;
@@ -310,4 +309,3 @@ export function getChannelMessageService(): ChannelMessageService {
 
 // Backward compatibility export
 // 向后兼容的导出
-export { ChannelMessageService as ChannelGeminiService, getChannelMessageService as getChannelGeminiService };

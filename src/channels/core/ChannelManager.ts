@@ -6,7 +6,6 @@
 
 import { getDatabase } from '@/process/database';
 import { getChannelMessageService } from '../agent/ChannelMessageService';
-import { getChannelDefaultModel } from '../actions/SystemActions';
 import { ActionExecutor } from '../gateway/ActionExecutor';
 import { PluginManager } from '../gateway/PluginManager';
 import { PairingService } from '../pairing/PairingService';
@@ -134,7 +133,7 @@ export class ChannelManager {
       // Stop pairing service cleanup interval
       this.pairingService?.stop();
 
-      // Shutdown Gemini service
+      // Shutdown channel message service
       await getChannelMessageService().shutdown();
 
       // Cleanup
@@ -245,26 +244,15 @@ export class ChannelManager {
   /**
    * Sync channel settings after agent or model change in the Settings UI.
    * Clears all cached sessions so the next incoming message re-evaluates
-   * which conversation to use. For gemini type changes, also updates the
-   * model field on existing conversations.
+   * which conversation to use.
    */
-  async syncChannelSettings(platform: string, agent: { backend: string; customAgentId?: string; name?: string }, model?: { id: string; useModel: string }): Promise<{ success: boolean; error?: string }> {
+  async syncChannelSettings(platform: string, agent: { backend: string; customAgentId?: string; name?: string }, _model?: { id: string; useModel: string }): Promise<{ success: boolean; error?: string }> {
     if (!this.initialized || !this.sessionManager) {
       return { success: false, error: 'Channel manager not initialized' };
     }
 
     try {
       const { convType: newType } = resolveChannelConvType(agent.backend);
-
-      // For gemini + model info: update existing conversations' model field
-      if (newType === 'gemini' && model?.id && model?.useModel) {
-        const fullModel = await getChannelDefaultModel(platform);
-        const db = getDatabase();
-        const result = db.updateChannelConversationModel(platform, 'gemini', fullModel);
-        if (result.success) {
-          console.log(`[ChannelManager] Updated ${result.data} gemini conversation(s) for ${platform}`);
-        }
-      }
 
       // Clear all sessions to force re-evaluation on next message
       const cleared = this.sessionManager.clearAllSessions();
@@ -301,12 +289,12 @@ export class ChannelManager {
     if (clearedSession) {
       cleanedUp = true;
 
-      // 2. Clear AssistantGeminiService agent cache for this session
+      // 2. Clear channel agent cache for this session
       try {
-        const geminiService = getChannelMessageService();
-        await geminiService.clearContext(clearedSession.id);
+        const messageService = getChannelMessageService();
+        await messageService.clearContext(clearedSession.id);
       } catch (error) {
-        console.warn(`[ChannelManager] Failed to clear Gemini context:`, error);
+        console.warn(`[ChannelManager] Failed to clear channel context:`, error);
       }
     }
 

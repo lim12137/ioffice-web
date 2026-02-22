@@ -161,6 +161,41 @@ describe('AccessGateService', () => {
     expect(status.user?.leaseId).toBe(join.leaseId);
   });
 
+  it('returns queued status projection for waiting user', () => {
+    const store = new MemoryIsolationStore(makeConfig(1));
+    const gate = new AccessGateService(store);
+
+    const first = gate.join(id('u1', 'c1'), 1000);
+    const second = gate.join(id('u2', 'c2'), 1010);
+
+    expect(first.decision).toBe('admitted');
+    expect(second.decision).toBe('queued');
+
+    const queuedStatus = gate.status(id('u2', 'c2'), 1020);
+    expect(queuedStatus.activeCount).toBe(1);
+    expect(queuedStatus.queueSize).toBe(1);
+    expect(queuedStatus.user?.state).toBe('waiting');
+    expect(queuedStatus.user?.queueEntryId).toBe(second.queueEntryId);
+    expect(queuedStatus.user?.queuePosition).toBe(1);
+  });
+
+  it('expires lease without heartbeat and allows re-admission', () => {
+    const store = new MemoryIsolationStore(makeConfig(1));
+    const gate = new AccessGateService(store);
+
+    const firstJoin = gate.join(id('u1', 'c1'), 1000);
+    expect(firstJoin.decision).toBe('admitted');
+
+    const expiredStatus = gate.status(id('u1', 'c1'), 1000 + 120001);
+    expect(expiredStatus.activeCount).toBe(0);
+    expect(expiredStatus.user?.state).toBe('none');
+
+    const secondJoin = gate.join(id('u1', 'c1'), 1000 + 120002);
+    expect(secondJoin.decision).toBe('admitted');
+    expect(secondJoin.leaseId).toBeDefined();
+    expect(secondJoin.leaseId).not.toBe(firstJoin.leaseId);
+  });
+
   it('queues second user and promotes on leave', () => {
     const store = new MemoryIsolationStore(makeConfig(1));
     const gate = new AccessGateService(store);

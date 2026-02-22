@@ -11,9 +11,19 @@ import { TokenMiddleware } from '@/webserver/auth/middleware/TokenMiddleware';
 import { WEBSOCKET_CONFIG } from '../config/constants';
 import { SHOW_OPEN_REQUEST_EVENT } from '../../adapter/constant';
 
+export interface WebSocketClientContext {
+  userId: string;
+  username: string;
+}
+
 interface ClientInfo {
   token: string;
   lastPing: number;
+  context: WebSocketClientContext;
+}
+
+interface BroadcastOptions {
+  userId?: string;
 }
 
 /**
@@ -39,15 +49,16 @@ export class WebSocketManager {
    * 设置连接处理器
    * Setup connection handler
    */
-  setupConnectionHandler(onMessage: (name: string, data: any, ws: WebSocket) => void): void {
+  setupConnectionHandler(onMessage: (name: string, data: any, context: WebSocketClientContext, ws: WebSocket) => void): void {
     this.wss.on('connection', (ws: WebSocket, req: IncomingMessage) => {
       const token = TokenMiddleware.extractWebSocketToken(req);
 
-      if (!this.validateConnection(ws, token)) {
+      const clientContext = this.validateConnection(ws, token);
+      if (!clientContext) {
         return;
       }
 
-      this.addClient(ws, token!);
+      this.addClient(ws, token!, clientContext);
       this.setupMessageHandler(ws, onMessage);
       this.setupCloseHandler(ws);
       this.setupErrorHandler(ws);
@@ -60,28 +71,33 @@ export class WebSocketManager {
    * 验证连接
    * Validate connection
    */
-  private validateConnection(ws: WebSocket, token: string | null): boolean {
+  private validateConnection(ws: WebSocket, token: string | null): WebSocketClientContext | null {
     if (!token) {
       ws.close(WEBSOCKET_CONFIG.CLOSE_CODES.POLICY_VIOLATION, 'No token provided');
-      return false;
+      return null;
     }
 
-    if (!TokenMiddleware.validateWebSocketToken(token)) {
+    const payload = TokenMiddleware.verifyWebSocketToken(token);
+    if (!payload) {
       ws.close(WEBSOCKET_CONFIG.CLOSE_CODES.POLICY_VIOLATION, 'Invalid or expired token');
-      return false;
+      return null;
     }
 
-    return true;
+    return {
+      userId: payload.userId,
+      username: payload.username,
+    };
   }
 
   /**
    * 添加客户端
    * Add client
    */
-  private addClient(ws: WebSocket, token: string): void {
+  private addClient(ws: WebSocket, token: string, context: WebSocketClientContext): void {
     this.clients.set(ws, {
       token,
       lastPing: Date.now(),
+      context,
     });
   }
 
@@ -89,7 +105,7 @@ export class WebSocketManager {
    * 设置消息处理器
    * Setup message handler
    */
-  private setupMessageHandler(ws: WebSocket, onMessage: (name: string, data: any, ws: WebSocket) => void): void {
+  private setupMessageHandler(ws: WebSocket, onMessage: (name: string, data: any, context: WebSocketClientContext, ws: WebSocket) => void): void {
     ws.on('message', (rawData) => {
       try {
         const parsed = JSON.parse(rawData.toString());
@@ -107,8 +123,19 @@ export class WebSocketManager {
           return;
         }
 
+        const clientInfo = this.clients.get(ws);
+        if (!clientInfo) {
+          ws.close(WEBSOCKET_CONFIG.CLOSE_CODES.POLICY_VIOLATION, 'Unauthorized connection');
+          return;
+        }
+
+        if (!TokenMiddleware.validateWebSocketToken(clientInfo.token)) {
+          this.closeClientForExpiredToken(ws);
+          return;
+        }
+
         // Forward other messages to bridge system
-        onMessage(name, data, ws);
+        onMessage(name, data, clientInfo.context, ws);
       } catch (error) {
         ws.send(
           JSON.stringify({
@@ -197,10 +224,7 @@ export class WebSocketManager {
 
       // Validate if WebSocket token is still valid
       if (!TokenMiddleware.validateWebSocketToken(clientInfo.token)) {
-        console.log('[WebSocketManager] Token expired, closing connection');
-        ws.send(JSON.stringify({ name: 'auth-expired', data: { message: 'Token expired, please login again' } }));
-        ws.close(WEBSOCKET_CONFIG.CLOSE_CODES.POLICY_VIOLATION, 'Token expired');
-        this.clients.delete(ws);
+        this.closeClientForExpiredToken(ws);
         continue;
       }
 
@@ -231,14 +255,28 @@ export class WebSocketManager {
    * 向所有客户端广播消息
    * Broadcast message to all clients
    */
-  broadcast(name: string, data: any): void {
+  broadcast(name: string, data: any, options: BroadcastOptions = {}): void {
     const message = JSON.stringify({ name, data });
 
-    for (const [ws, _clientInfo] of this.clients) {
-      if (ws.readyState === WebSocket.OPEN) {
+    for (const [ws, clientInfo] of this.clients) {
+      if (ws.readyState === WebSocket.OPEN && this.shouldSendToClient(clientInfo, options)) {
         ws.send(message);
       }
     }
+  }
+
+  private shouldSendToClient(clientInfo: ClientInfo, options: BroadcastOptions): boolean {
+    if (!options.userId) {
+      return true;
+    }
+    return clientInfo.context.userId === options.userId;
+  }
+
+  private closeClientForExpiredToken(ws: WebSocket): void {
+    console.log('[WebSocketManager] Token expired, closing connection');
+    ws.send(JSON.stringify({ name: 'auth-expired', data: { message: 'Token expired, please login again' } }));
+    ws.close(WEBSOCKET_CONFIG.CLOSE_CODES.POLICY_VIOLATION, 'Token expired');
+    this.clients.delete(ws);
   }
 
   /**

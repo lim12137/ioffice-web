@@ -4,16 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { BrowserWindow } from 'electron';
-import { ipcMain } from 'electron';
+import type { BrowserWindow } from '@/platform/electron';
+import { ipcMain } from '@/platform/electron';
 
 import { bridge } from '@office-ai/platform';
+import { getBridgeRequestContext, runWithBridgeRequestContext } from '@/process/bridge/bridgeRequestContext';
 import { ADAPTER_BRIDGE_EVENT_KEY } from './constant';
 
 /**
  * Bridge event data structure for IPC communication
- * IPC 通信的桥接事件数据结构
- */
+ * IPC 通信的桥接事件数据结�? */
 interface BridgeEventData {
   name: string;
   data: unknown;
@@ -25,7 +25,7 @@ const adapterWindowList: Array<BrowserWindow> = [];
  * WebSocket 广播函数类型
  * WebSocket broadcast function type
  */
-type WebSocketBroadcastFn = (name: string, data: unknown) => void;
+type WebSocketBroadcastFn = (name: string, data: unknown, scope?: { userId?: string }) => void;
 
 /**
  * 已注册的 WebSocket 广播函数列表
@@ -50,10 +50,9 @@ export function registerWebSocketBroadcaster(broadcastFn: WebSocketBroadcastFn):
 }
 
 /**
- * 注册 WebSocket 消息处理器（供 WebUI 服务器使用）
+ * 注册 WebSocket 消息处理器（�?WebUI 服务器使用）
  * Register WebSocket message handler (for WebUI server)
- * 由于 bridge 的 emitter 在适配器初始化时捕获，我们需要将其暴露出来
- * Since bridge emitter is captured at adapter init time, we need to expose it
+ * 由于 bridge �?emitter 在适配器初始化时捕获，我们需要将其暴露出�? * Since bridge emitter is captured at adapter init time, we need to expose it
  */
 let bridgeEmitter: { emit: (name: string, data: unknown) => unknown } | null = null;
 
@@ -70,27 +69,30 @@ export function getBridgeEmitter(): typeof bridgeEmitter {
  * */
 bridge.adapter({
   emit(name, data) {
-    // 1. 发送到所有 Electron BrowserWindow / Send to all Electron BrowserWindows
+    const requestContext = getBridgeRequestContext();
+    const webSocketScope = requestContext?.transport === 'websocket' && requestContext.userId ? { userId: requestContext.userId } : undefined;
+
+    // 1. 发送到所�?Electron BrowserWindow / Send to all Electron BrowserWindows
     for (let i = 0, len = adapterWindowList.length; i < len; i++) {
       const win = adapterWindowList[i];
       win.webContents.send(ADAPTER_BRIDGE_EVENT_KEY, JSON.stringify({ name, data }));
     }
-    // 2. 同时广播到所有 WebSocket 客户端 / Also broadcast to all WebSocket clients
+    // 2. 同时广播到所�?WebSocket 客户�?/ Also broadcast to all WebSocket clients
     for (const broadcast of webSocketBroadcasters) {
       try {
-        broadcast(name, data);
+        broadcast(name, data, webSocketScope);
       } catch (error) {
         console.error('[MainAdapter] WebSocket broadcast error:', error);
       }
     }
   },
   on(emitter) {
-    // 保存 emitter 引用供 WebSocket 处理使用 / Save emitter reference for WebSocket handling
+    // 保存 emitter 引用�?WebSocket 处理使用 / Save emitter reference for WebSocket handling
     bridgeEmitter = emitter;
 
     ipcMain.handle(ADAPTER_BRIDGE_EVENT_KEY, (_event, info) => {
       const { name, data } = JSON.parse(info) as BridgeEventData;
-      return Promise.resolve(emitter.emit(name, data));
+      return runWithBridgeRequestContext({ transport: 'electron' }, () => Promise.resolve(emitter.emit(name, data)));
     });
   },
 });

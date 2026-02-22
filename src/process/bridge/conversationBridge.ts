@@ -5,7 +5,6 @@
  */
 
 import type { CodexAgentManager } from '@/agent/codex';
-import { GeminiAgent, GeminiApprovalStore } from '@/agent/gemini';
 import type { TChatConversation } from '@/common/storage';
 import { getDatabase } from '@process/database';
 import { cronService } from '@process/services/cron/CronService';
@@ -14,19 +13,20 @@ import { uuid } from '../../common/utils';
 import { ProcessChat } from '../initStorage';
 import { ConversationService } from '../services/conversationService';
 import type AcpAgentManager from '../task/AcpAgentManager';
-import type { GeminiAgentManager } from '../task/GeminiAgentManager';
 import type NanoBotAgentManager from '../task/NanoBotAgentManager';
 import type OpenClawAgentManager from '../task/OpenClawAgentManager';
 import { copyFilesToDirectory, readDirectoryRecursive } from '../utils';
 import { computeOpenClawIdentityHash } from '../utils/openclawUtils';
 import WorkerManage from '../WorkerManage';
+import { getBridgeRequestUserId } from './bridgeRequestContext';
+import { canAccessConversation } from './conversationAccess';
 import { migrateConversationToDatabase } from './migrationUtils';
 
 export function initConversationBridge(): void {
   ipcBridge.openclawConversation.getRuntime.provider(async ({ conversation_id }) => {
     try {
       const db = getDatabase();
-      const convResult = db.getConversation(conversation_id);
+      const convResult = db.getConversation(conversation_id, getBridgeRequestUserId());
       if (!convResult.success || !convResult.data || convResult.data.type !== 'openclaw-gateway') {
         return { success: false, msg: 'OpenClaw conversation not found' };
       }
@@ -70,10 +70,12 @@ export function initConversationBridge(): void {
   });
 
   ipcBridge.conversation.create.provider(async (params): Promise<TChatConversation> => {
-    // 使用 ConversationService 创建会话 / Use ConversationService to create conversation
+    const userId = getBridgeRequestUserId();
+    // 浣跨敤 ConversationService 鍒涘缓浼氳瘽 / Use ConversationService to create conversation
     const result = await ConversationService.createConversation({
       ...params,
-      source: 'aionui', // AionUI 创建的会话标记为 aionui / Mark conversations created by AionUI as aionui
+      userId,
+      source: 'aionui', // AionUI 鍒涘缓鐨勪細璇濇爣璁颁负 aionui / Mark conversations created by AionUI as aionui
     });
 
     if (!result.success || !result.conversation) {
@@ -83,31 +85,31 @@ export function initConversationBridge(): void {
     return result.conversation;
   });
 
-  // Manually reload conversation context (Gemini): inject recent history into memory
+  // Manual reload is kept for API compatibility, but no longer supported.
   ipcBridge.conversation.reloadContext.provider(async ({ conversation_id }) => {
-    try {
-      const task = (await WorkerManage.getTaskByIdRollbackBuild(conversation_id)) as GeminiAgentManager | AcpAgentManager | CodexAgentManager | undefined;
-      if (!task) return { success: false, msg: 'conversation not found' };
-      if (task.type !== 'gemini') return { success: false, msg: 'only supported for gemini' };
-
-      await (task as GeminiAgentManager).reloadContext();
-      return { success: true };
-    } catch (e: unknown) {
-      return { success: false, msg: e instanceof Error ? e.message : String(e) };
+    if (!canAccessConversation(conversation_id)) {
+      return { success: false, msg: 'conversation not found' };
     }
+    const task = WorkerManage.getTaskById(conversation_id);
+    if (!task) return { success: false, msg: 'conversation not found' };
+    return { success: false, msg: 'reload context is not supported for this agent type' };
   });
 
   ipcBridge.conversation.getAssociateConversation.provider(async ({ conversation_id }) => {
     try {
       const db = getDatabase();
+      const userId = getBridgeRequestUserId();
 
       // Try to get current conversation from database
       let currentConversation: TChatConversation | undefined;
-      const currentResult = db.getConversation(conversation_id);
+      const currentResult = db.getConversation(conversation_id, userId);
 
       if (currentResult.success && currentResult.data) {
         currentConversation = currentResult.data;
       } else {
+        if (userId) {
+          return [];
+        }
         // Not in database, try file storage
         const history = await ProcessChat.get('chat.history');
         currentConversation = (history || []).find((item) => item.id === conversation_id);
@@ -123,8 +125,12 @@ export function initConversationBridge(): void {
       }
 
       // Get all conversations from database (get first page with large limit to get all)
-      const allResult = db.getUserConversations(undefined, 0, 10000);
+      const allResult = db.getUserConversations(userId, 0, 10000);
       let allConversations: TChatConversation[] = allResult.data || [];
+
+      if (userId) {
+        return allConversations.filter((item) => item.extra?.workspace === currentConversation.extra.workspace);
+      }
 
       // If database is empty or doesn't have enough conversations, merge with file storage
       const history = await ProcessChat.get('chat.history');
@@ -146,36 +152,35 @@ export function initConversationBridge(): void {
 
   ipcBridge.conversation.createWithConversation.provider(({ conversation, sourceConversationId }) => {
     try {
+      const userId = getBridgeRequestUserId();
       conversation.createTime = Date.now();
       conversation.modifyTime = Date.now();
       WorkerManage.buildConversation(conversation);
 
       // Save to database only
       const db = getDatabase();
-      const result = db.createConversation(conversation);
+      const result = db.createConversation(conversation, userId);
       if (!result.success) {
         console.error('[conversationBridge] Failed to create conversation in database:', result.error);
       }
 
-      // Migrate messages if sourceConversationId is provided / 如果提供了源会话ID，则迁移消息
+      // Migrate messages if sourceConversationId is provided / 濡傛灉鎻愪緵浜嗘簮浼氳瘽ID锛屽垯杩佺Щ娑堟伅
       if (sourceConversationId && result.success) {
         try {
-          // Fetch all messages from source conversation / 获取源会话的所有消息
-          // Using a large pageSize to get all messages, or loop if needed. / 使用较大的 pageSize 获取所有消息，必要时循环获取
-          // For now, 10000 should cover most cases. / 目前 10000 条应该能覆盖大多数情况
+          // Fetch all messages from source conversation (paged)
           const pageSize = 10000;
           let page = 0;
           let hasMore = true;
 
           while (hasMore) {
-            const messagesResult = db.getConversationMessages(sourceConversationId, page, pageSize);
+            const messagesResult = db.getConversationMessages(sourceConversationId, page, pageSize, 'ASC', userId);
             const messages = messagesResult.data;
 
             for (const msg of messages) {
-              // Create a copy of the message with new ID and new conversation ID / 创建消息副本，使用新 ID 和新会话 ID
+              // Create a copy of the message with new ID and new conversation ID / 鍒涘缓娑堟伅鍓湰锛屼娇鐢ㄦ柊 ID 鍜屾柊浼氳瘽 ID
               const newMessage = {
                 ...msg,
-                id: uuid(), // Generate new ID / 生成新 ID
+                id: uuid(), // Generate new ID / 鐢熸垚鏂?ID
                 conversation_id: conversation.id,
                 createdAt: msg.createdAt || Date.now(),
               };
@@ -186,15 +191,15 @@ export function initConversationBridge(): void {
             page++;
           }
 
-          // Verify integrity and remove source conversation / 校验完整性并移除源会话
-          const sourceMessages = db.getConversationMessages(sourceConversationId, 0, 1);
-          const newMessages = db.getConversationMessages(conversation.id, 0, 1);
+          // Verify integrity and remove source conversation
+          const sourceMessages = db.getConversationMessages(sourceConversationId, 0, 1, 'ASC', userId);
+          const newMessages = db.getConversationMessages(conversation.id, 0, 1, 'ASC', userId);
 
           if (sourceMessages.total === newMessages.total) {
-            // Verification passed, delete source conversation / 校验通过，删除源会话
-            // ON DELETE CASCADE will handle message deletion / 级联删除会自动处理消息删除
-            const deleteResult = db.deleteConversation(sourceConversationId);
-            if (deleteResult.success) {
+            // Verification passed, delete source conversation / 鏍￠獙閫氳繃锛屽垹闄ゆ簮浼氳瘽
+            // ON DELETE CASCADE will handle message deletion
+            const deleteResult = db.deleteConversation(sourceConversationId, userId);
+            if (deleteResult.success && deleteResult.data) {
               console.log(`[conversationBridge] Successfully migrated and deleted source conversation ${sourceConversationId}`);
             } else {
               console.error(`[conversationBridge] Failed to delete source conversation ${sourceConversationId}: ${deleteResult.error}`);
@@ -204,7 +209,7 @@ export function initConversationBridge(): void {
               source: sourceMessages.total,
               new: newMessages.total,
             });
-            // Do not delete source if verification fails / 如果校验失败，不删除源会话
+            // Do not delete source if verification fails
           }
         } catch (msgError) {
           console.error('[conversationBridge] Failed to copy messages during migration:', msgError);
@@ -221,9 +226,13 @@ export function initConversationBridge(): void {
   ipcBridge.conversation.remove.provider(async ({ id }) => {
     try {
       const db = getDatabase();
+      const userId = getBridgeRequestUserId();
 
       // Get conversation to check source before deletion
-      const convResult = db.getConversation(id);
+      const convResult = db.getConversation(id, userId);
+      if (!convResult.success || !convResult.data) {
+        return false;
+      }
       const conversation = convResult.data;
       const source = conversation?.source;
 
@@ -243,7 +252,7 @@ export function initConversationBridge(): void {
       }
 
       // If source is not 'aionui' (e.g., telegram), cleanup channel resources
-      // 如果来源不是 aionui（如 telegram），需要清理 channel 相关资源
+      // 濡傛灉鏉ユ簮涓嶆槸 aionui锛堝 telegram锛夛紝闇€瑕佹竻鐞?channel 鐩稿叧璧勬簮
       if (source && source !== 'aionui') {
         try {
           // Dynamic import to avoid circular dependency
@@ -260,7 +269,7 @@ export function initConversationBridge(): void {
       }
 
       // Delete conversation from database (will cascade delete messages due to foreign key)
-      const result = db.deleteConversation(id);
+      const result = db.deleteConversation(id, userId);
       if (!result.success) {
         console.error('[conversationBridge] Failed to delete conversation from database:', result.error);
         return false;
@@ -276,14 +285,15 @@ export function initConversationBridge(): void {
   ipcBridge.conversation.update.provider(async ({ id, updates, mergeExtra }: { id: string; updates: Partial<TChatConversation>; mergeExtra?: boolean }) => {
     try {
       const db = getDatabase();
-      const existing = db.getConversation(id);
+      const userId = getBridgeRequestUserId();
+      const existing = db.getConversation(id, userId);
       // Only gemini type has model, use 'in' check to safely access
       const prevModel = existing.success && existing.data && 'model' in existing.data ? existing.data.model : undefined;
       const nextModel = 'model' in updates ? updates.model : undefined;
       const modelChanged = !!nextModel && JSON.stringify(prevModel) !== JSON.stringify(nextModel);
       // model change detection for task rebuild
 
-      // 如果 mergeExtra 为 true，合并 extra 字段而不是覆盖
+      // Merge extra fields when requested instead of replacing them
       let finalUpdates = updates;
       if (mergeExtra && updates.extra && existing.success && existing.data) {
         finalUpdates = {
@@ -295,7 +305,7 @@ export function initConversationBridge(): void {
         } as Partial<TChatConversation>;
       }
 
-      const result = await Promise.resolve(db.updateConversation(id, finalUpdates));
+      const result = await Promise.resolve(db.updateConversation(id, finalUpdates, userId));
 
       // If model changed, kill running task to force rebuild with new model on next send
       if (result.success && modelChanged) {
@@ -315,8 +325,14 @@ export function initConversationBridge(): void {
 
   ipcBridge.conversation.reset.provider(({ id }) => {
     if (id) {
+      if (!canAccessConversation(id)) {
+        return Promise.resolve();
+      }
       WorkerManage.kill(id);
     } else {
+      if (getBridgeRequestUserId()) {
+        return Promise.resolve();
+      }
       WorkerManage.clear();
     }
     return Promise.resolve();
@@ -325,15 +341,20 @@ export function initConversationBridge(): void {
   ipcBridge.conversation.get.provider(async ({ id }) => {
     try {
       const db = getDatabase();
+      const userId = getBridgeRequestUserId();
 
       // Try to get conversation from database first
-      const result = db.getConversation(id);
+      const result = db.getConversation(id, userId);
       if (result.success && result.data) {
         // Found in database, update status and return
         const conversation = result.data;
         const task = WorkerManage.getTaskById(id);
         conversation.status = task?.status || 'finished';
         return conversation;
+      }
+
+      if (userId) {
+        return undefined;
       }
 
       // Not in database, try to load from file storage and migrate
@@ -365,14 +386,16 @@ export function initConversationBridge(): void {
     };
   })();
 
-  ipcBridge.conversation.getWorkspace.provider(async ({ workspace, search, path }) => {
-    const fileService = GeminiAgent.buildFileServer(workspace);
+  ipcBridge.conversation.getWorkspace.provider(async ({ conversation_id, workspace, search, path }) => {
+    if (conversation_id && !canAccessConversation(conversation_id)) {
+      return [];
+    }
     try {
       return await readDirectoryRecursive(path, {
         root: workspace,
-        fileService,
+        fileService: { shouldIgnoreFile: () => false },
         abortController: buildLastAbortController(),
-        maxDepth: 10, // 支持更深的目录结构 / Support deeper directory structures
+        maxDepth: 10, // 鏀寔鏇存繁鐨勭洰褰曠粨鏋?/ Support deeper directory structures
         search: {
           text: search,
           onProcess(result) {
@@ -381,7 +404,7 @@ export function initConversationBridge(): void {
         },
       }).then((res) => (res ? [res] : []));
     } catch (error) {
-      // 捕获 abort 错误，避免 unhandled rejection
+      // 鎹曡幏 abort 閿欒锛岄伩鍏?unhandled rejection
       // Catch abort errors to avoid unhandled rejection
       if (error instanceof Error && error.message.includes('aborted')) {
         console.log('[Workspace] Read directory aborted:', error.message);
@@ -392,22 +415,28 @@ export function initConversationBridge(): void {
   });
 
   ipcBridge.conversation.stop.provider(async ({ conversation_id }) => {
+    if (!canAccessConversation(conversation_id)) {
+      return { success: false, msg: 'conversation not found' };
+    }
     const task = WorkerManage.getTaskById(conversation_id);
     if (!task) return { success: true, msg: 'conversation not found' };
-    if (task.type !== 'gemini' && task.type !== 'acp' && task.type !== 'codex' && task.type !== 'openclaw-gateway' && task.type !== 'nanobot') {
+    if (task.type !== 'acp' && task.type !== 'codex' && task.type !== 'openclaw-gateway' && task.type !== 'nanobot') {
       return { success: false, msg: 'not support' };
     }
     await task.stop();
     return { success: true };
   });
 
-  // 通用 sendMessage 实现 - 自动根据 conversation 类型分发
+  // 閫氱敤 sendMessage 瀹炵幇 - 鑷姩鏍规嵁 conversation 绫诲瀷鍒嗗彂
   ipcBridge.conversation.sendMessage.provider(async ({ conversation_id, files, ...other }) => {
     console.log(`[conversationBridge] sendMessage called: conversation_id=${conversation_id}, msg_id=${other.msg_id}`);
+    if (!canAccessConversation(conversation_id)) {
+      return { success: false, msg: 'conversation not found' };
+    }
 
-    let task: GeminiAgentManager | AcpAgentManager | CodexAgentManager | OpenClawAgentManager | NanoBotAgentManager | undefined;
+    let task: AcpAgentManager | CodexAgentManager | OpenClawAgentManager | NanoBotAgentManager | undefined;
     try {
-      task = (await WorkerManage.getTaskByIdRollbackBuild(conversation_id)) as GeminiAgentManager | AcpAgentManager | CodexAgentManager | OpenClawAgentManager | NanoBotAgentManager | undefined;
+      task = (await WorkerManage.getTaskByIdRollbackBuild(conversation_id)) as AcpAgentManager | CodexAgentManager | OpenClawAgentManager | NanoBotAgentManager | undefined;
     } catch (err) {
       console.log(`[conversationBridge] sendMessage: failed to get/build task: ${conversation_id}`, err);
       return { success: false, msg: err instanceof Error ? err.message : 'conversation not found' };
@@ -419,16 +448,12 @@ export function initConversationBridge(): void {
     }
     console.log(`[conversationBridge] sendMessage: found task type=${task.type}, status=${task.status}`);
 
-    // 复制文件到工作空间（所有 agents 统一处理）
-    // Copy files to workspace (unified for all agents)
+    // 澶嶅埗鏂囦欢鍒板伐浣滅┖闂达紙鎵€鏈?agents 缁熶竴澶勭悊锛?    // Copy files to workspace (unified for all agents)
     const workspaceFiles = await copyFilesToDirectory(task.workspace, files, false);
 
     try {
-      // 根据 task 类型调用对应的 sendMessage 方法
-      if (task.type === 'gemini') {
-        await (task as GeminiAgentManager).sendMessage({ ...other, files: workspaceFiles });
-        return { success: true };
-      } else if (task.type === 'acp') {
+      // 鏍规嵁 task 绫诲瀷璋冪敤瀵瑰簲鐨?sendMessage 鏂规硶
+      if (task.type === 'acp') {
         await (task as AcpAgentManager).sendMessage({ content: other.input, files: workspaceFiles, msg_id: other.msg_id });
         return { success: true };
       } else if (task.type === 'codex') {
@@ -448,31 +473,27 @@ export function initConversationBridge(): void {
     }
   });
 
-  // 通用 confirmMessage 实现 - 自动根据 conversation 类型分发
+  // 閫氱敤 confirmMessage 瀹炵幇 - 鑷姩鏍规嵁 conversation 绫诲瀷鍒嗗彂
 
   ipcBridge.conversation.confirmation.confirm.provider(async ({ conversation_id, msg_id, data, callId }) => {
+    if (!canAccessConversation(conversation_id)) return { success: false, msg: 'conversation not found' };
     const task = WorkerManage.getTaskById(conversation_id);
     if (!task) return { success: false, msg: 'conversation not found' };
     task.confirm(msg_id, callId, data);
     return { success: true };
   });
   ipcBridge.conversation.confirmation.list.provider(async ({ conversation_id }) => {
+    if (!canAccessConversation(conversation_id)) return [];
     const task = WorkerManage.getTaskById(conversation_id);
     if (!task) return [];
     return task.getConfirmations();
   });
 
   // Session-level approval memory for "always allow" decisions
-  // 会话级别的权限记忆，用于 "always allow" 决策
+  // 浼氳瘽绾у埆鐨勬潈闄愯蹇嗭紝鐢ㄤ簬 "always allow" 鍐崇瓥
   // Keys are parsed from raw action+commandType here (single source of truth)
-  // Keys 在此处从原始 action+commandType 解析（单一数据源）
-  ipcBridge.conversation.approval.check.provider(async ({ conversation_id, action, commandType }) => {
-    const task = WorkerManage.getTaskById(conversation_id) as GeminiAgentManager | undefined;
-    if (!task || task.type !== 'gemini' || !task.approvalStore) {
-      return false;
-    }
-    const keys = GeminiApprovalStore.createKeysFromConfirmation(action, commandType);
-    if (keys.length === 0) return false;
-    return task.approvalStore.allApproved(keys);
+  // Keys 鍦ㄦ澶勪粠鍘熷 action+commandType 瑙ｆ瀽锛堝崟涓€鏁版嵁婧愶級
+  ipcBridge.conversation.approval.check.provider(async ({ conversation_id: _conversation_id, action: _action, commandType: _commandType }) => {
+    return false;
   });
 }
