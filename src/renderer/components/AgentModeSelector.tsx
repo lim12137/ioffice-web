@@ -16,7 +16,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import AuggieLogo from '@/renderer/assets/logos/auggie.svg';
 import ClaudeLogo from '@/renderer/assets/logos/claude.svg';
 import CodexLogo from '@/renderer/assets/logos/codex.svg';
-import GeminiLogo from '@/renderer/assets/logos/gemini.svg';
 import GitHubLogo from '@/renderer/assets/logos/github.svg';
 import GooseLogo from '@/renderer/assets/logos/goose.svg';
 import IflowLogo from '@/renderer/assets/logos/iflow.svg';
@@ -28,7 +27,6 @@ import QwenLogo from '@/renderer/assets/logos/qwen.svg';
 
 const AGENT_LOGO_MAP: Partial<Record<AcpBackend, string>> = {
   claude: ClaudeLogo,
-  gemini: GeminiLogo,
   qwen: QwenLogo,
   codex: CodexLogo,
   iflow: IflowLogo,

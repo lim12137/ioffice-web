@@ -468,7 +468,7 @@ export class GeminiAgentManager extends BaseAgentManager<
       // Filter think tags from streaming content before emitting to UI
       // 在发送到 UI 前过滤流式内容中的 think 标签
       const filteredData = this.filterThinkTagsFromMessage(data);
-      ipcBridge.geminiConversation.responseStream.emit(filteredData);
+      ipcBridge.conversation.responseStream.emit(filteredData);
 
       // 发送到 Channel 全局事件总线（用于 Telegram 等外部平台）
       // Emit to Channel global event bus (for Telegram and other external platforms)
@@ -541,7 +541,7 @@ export class GeminiAgentManager extends BaseAgentManager<
         await processCronInMessage(this.conversation_id, 'gemini', msgWithStatus, (sysMsg) => {
           collectedResponses.push(sysMsg);
           // Also emit to frontend for display
-          ipcBridge.geminiConversation.responseStream.emit({
+          ipcBridge.conversation.responseStream.emit({
             type: 'system',
             conversation_id: this.conversation_id,
             msg_id: uuid(),

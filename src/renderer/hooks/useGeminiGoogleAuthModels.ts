@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * Copyright 2025 AionUi (aionui.com)
  * SPDX-License-Identifier: Apache-2.0
@@ -14,12 +14,6 @@ import { getGeminiModeList, type GeminiModeOption } from './useModeModeList';
 export interface GeminiGoogleAuthModelResult {
   geminiModeOptions: GeminiModeOption[];
   isGoogleAuth: boolean;
-  subscriptionStatus?: {
-    isSubscriber: boolean;
-    tier?: string;
-    lastChecked: number;
-    message?: string;
-  };
 }
 
 export const useGeminiGoogleAuthModels = (): GeminiGoogleAuthModelResult => {
@@ -27,21 +21,13 @@ export const useGeminiGoogleAuthModels = (): GeminiGoogleAuthModelResult => {
   const { data: geminiConfig } = useSWR('gemini.config', () => ConfigStorage.get('gemini.config'));
   const proxyKey = geminiConfig?.proxy || '';
 
-  // 先通过 Google Auth 状态判断是否可用原生 Gemini。Check whether Google Auth CLI is ready.
+  // 鍏堥€氳繃 Google Auth 鐘舵€佸垽鏂槸鍚﹀彲鐢ㄥ師鐢?Gemini銆侰heck whether Google Auth CLI is ready.
   const { data: isGoogleAuth } = useSWR('google.auth.status' + proxyKey, async () => {
     const data = await ipcBridge.googleAuth.status.invoke({ proxy: geminiConfig?.proxy });
     return data.success;
   });
 
-  const shouldCheckSubscription = Boolean(isGoogleAuth);
-
-  // 仅在通过认证后才触发订阅状态查询。Only hit CLI subscription API when authenticated.
-  const subscriptionKey = shouldCheckSubscription ? 'gemini.subscription.status' + proxyKey : null;
-  const { data: subscriptionResponse } = useSWR(subscriptionKey, () => {
-    return ipcBridge.gemini.subscriptionStatus.invoke({ proxy: geminiConfig?.proxy });
-  });
-
-  // 生成与终端 CLI 一致的模型列表 / Generate model list matching terminal CLI
+  // 鐢熸垚涓庣粓绔?CLI 涓€鑷寸殑妯″瀷鍒楄〃 / Generate model list matching terminal CLI
   const descriptions = useMemo(
     () => ({
       autoGemini3: t('gemini.mode.autoGemini3Desc', 'Let Gemini CLI decide the best model for the task: gemini-3-pro-preview, gemini-3-flash-preview'),
@@ -55,6 +41,5 @@ export const useGeminiGoogleAuthModels = (): GeminiGoogleAuthModelResult => {
   return {
     geminiModeOptions,
     isGoogleAuth: Boolean(isGoogleAuth),
-    subscriptionStatus: subscriptionResponse?.data,
   };
 };

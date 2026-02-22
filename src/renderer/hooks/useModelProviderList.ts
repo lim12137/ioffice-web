@@ -1,31 +1,21 @@
-import { ipcBridge } from '@/common';
-import { GOOGLE_AUTH_PROVIDER_ID } from '@/common/constants';
+﻿import { ipcBridge } from '@/common';
 import type { IProvider } from '@/common/storage';
 import { useCallback, useMemo, useRef } from 'react';
 import useSWR from 'swr';
-import { useGeminiGoogleAuthModels } from './useGeminiGoogleAuthModels';
-import type { GeminiModeOption } from './useModeModeList';
 import { hasSpecificModelCapability } from '@/renderer/utils/modelCapabilities';
 
 export interface ModelProviderListResult {
   providers: IProvider[];
-  geminiModeLookup: Map<string, GeminiModeOption>;
+  geminiModeLookup: Map<string, never>;
   getAvailableModels: (provider: IProvider) => string[];
   formatModelLabel: (provider: { platform?: string } | undefined, modelName?: string) => string;
 }
 
 /**
- * Shared hook that builds the provider list (including Google Auth)
- * and exposes helpers consumed by both conversation and channel settings.
+ * Shared hook that builds the provider list and exposes helper methods.
  */
 export const useModelProviderList = (): ModelProviderListResult => {
-  const { geminiModeOptions, isGoogleAuth } = useGeminiGoogleAuthModels();
-
-  const geminiModeLookup = useMemo(() => {
-    const lookup = new Map<string, GeminiModeOption>();
-    geminiModeOptions.forEach((option) => lookup.set(option.value, option));
-    return lookup;
-  }, [geminiModeOptions]);
+  const geminiModeLookup = useMemo(() => new Map<string, never>(), []);
 
   const { data: modelConfig } = useSWR('model.config.shared', () => ipcBridge.mode.getModelConfig.invoke());
 
@@ -51,33 +41,13 @@ export const useModelProviderList = (): ModelProviderListResult => {
   }, []);
 
   const providers = useMemo(() => {
-    let list: IProvider[] = Array.isArray(modelConfig) ? modelConfig : [];
-    if (isGoogleAuth) {
-      const googleProvider: IProvider = {
-        id: GOOGLE_AUTH_PROVIDER_ID,
-        name: 'Gemini Google Auth',
-        platform: 'gemini-with-google-auth',
-        baseUrl: '',
-        apiKey: '',
-        model: geminiModeOptions.map((v) => v.value),
-        capabilities: [{ type: 'text' }, { type: 'vision' }, { type: 'function_calling' }],
-      } as unknown as IProvider;
-      list = [googleProvider, ...list];
-    }
+    const list: IProvider[] = Array.isArray(modelConfig) ? modelConfig : [];
     return list.filter((p) => getAvailableModels(p).length > 0);
-  }, [geminiModeOptions, getAvailableModels, isGoogleAuth, modelConfig]);
+  }, [getAvailableModels, modelConfig]);
 
-  const formatModelLabel = useCallback(
-    (provider: { platform?: string } | undefined, modelName?: string) => {
-      if (!modelName) return '';
-      const isGoogleAuthProvider = provider?.platform?.toLowerCase().includes('gemini-with-google-auth');
-      if (isGoogleAuthProvider) {
-        return geminiModeLookup.get(modelName)?.label || modelName;
-      }
-      return modelName;
-    },
-    [geminiModeLookup]
-  );
+  const formatModelLabel = useCallback((_provider: { platform?: string } | undefined, modelName?: string) => {
+    return modelName || '';
+  }, []);
 
   return { providers, geminiModeLookup, getAvailableModels, formatModelLabel };
 };

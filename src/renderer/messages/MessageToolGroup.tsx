@@ -417,7 +417,7 @@ const MessageToolGroup: React.FC<IMessageToolGroupProps> = ({ message }) => {
               key={callId}
               content={content}
               onConfirm={(outcome) => {
-                ipcBridge.geminiConversation.confirmMessage
+                ipcBridge.conversation.confirmMessage
                   .invoke({
                     confirmKey: outcome,
                     msg_id: message.id,

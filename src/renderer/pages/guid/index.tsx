@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * Copyright 2025 AionUi (aionui.com)
  * SPDX-License-Identifier: Apache-2.0
@@ -8,14 +8,13 @@ import { ipcBridge } from '@/common';
 import { ASSISTANT_PRESETS } from '@/common/presets/assistantPresets';
 import type { IProvider, TProviderWithModel } from '@/common/storage';
 import { ConfigStorage } from '@/common/storage';
-import { resolveLocaleKey, uuid } from '@/common/utils';
+import { resolveLocaleKey } from '@/common/utils';
 import coworkSvg from '@/renderer/assets/cowork.svg';
 import AuggieLogo from '@/renderer/assets/logos/auggie.svg';
 import ClaudeLogo from '@/renderer/assets/logos/claude.svg';
 import CodeBuddyLogo from '@/renderer/assets/logos/codebuddy.svg';
 import CodexLogo from '@/renderer/assets/logos/codex.svg';
 import DroidLogo from '@/renderer/assets/logos/droid.svg';
-import GeminiLogo from '@/renderer/assets/logos/gemini.svg';
 import GitHubLogo from '@/renderer/assets/logos/github.svg';
 import GooseLogo from '@/renderer/assets/logos/goose.svg';
 import IflowLogo from '@/renderer/assets/logos/iflow.svg';
@@ -32,14 +31,12 @@ import FilePreview from '@/renderer/components/FilePreview';
 import { useLayoutContext } from '@/renderer/context/LayoutContext';
 import { useCompositionInput } from '@/renderer/hooks/useCompositionInput';
 import { useDragUpload } from '@/renderer/hooks/useDragUpload';
-import { useGeminiGoogleAuthModels } from '@/renderer/hooks/useGeminiGoogleAuthModels';
 import { useInputFocusRing } from '@/renderer/hooks/useInputFocusRing';
 import { usePasteService } from '@/renderer/hooks/usePasteService';
 import { useConversationTabs } from '@/renderer/pages/conversation/context/ConversationTabsContext';
 import { allSupportedExts, getCleanFileNames, type FileMetadata } from '@/renderer/services/FileService';
 import { iconColors } from '@/renderer/theme/colors';
 import { emitter } from '@/renderer/utils/emitter';
-import { buildDisplayMessage } from '@/renderer/utils/messageFiles';
 import { hasSpecificModelCapability } from '@/renderer/utils/modelCapabilities';
 import { updateWorkspaceTime } from '@/renderer/utils/workspaceHistory';
 import { isAcpRoutedPresetType, type AcpBackend, type AcpBackendConfig, type PresetAgentType } from '@/types/acpTypes';
@@ -53,25 +50,22 @@ import useSWR, { mutate } from 'swr';
 import styles from './index.module.css';
 
 /**
- * 缓存Provider的可用模型列表，避免重复计算
+ * 缂撳瓨Provider鐨勫彲鐢ㄦā鍨嬪垪琛紝閬垮厤閲嶅璁＄畻
  */
 const availableModelsCache = new Map<string, string[]>();
 
 /**
- * 获取提供商下所有可用的主力模型（带缓存）
- * @param provider - 提供商配置
- * @returns 可用的主力模型名称数组
- */
+ * 鑾峰彇鎻愪緵鍟嗕笅鎵€鏈夊彲鐢ㄧ殑涓诲姏妯″瀷锛堝甫缂撳瓨锛? * @param provider - 鎻愪緵鍟嗛厤缃? * @returns 鍙敤鐨勪富鍔涙ā鍨嬪悕绉版暟缁? */
 const getAvailableModels = (provider: IProvider): string[] => {
-  // 生成缓存键，包含模型列表以检测变化
+  // 鐢熸垚缂撳瓨閿紝鍖呭惈妯″瀷鍒楄〃浠ユ娴嬪彉鍖?
   const cacheKey = `${provider.id}-${(provider.model || []).join(',')}`;
 
-  // 检查缓存
+  // 妫€鏌ョ紦瀛?
   if (availableModelsCache.has(cacheKey)) {
     return availableModelsCache.get(cacheKey)!;
   }
 
-  // 计算可用模型
+  // 璁＄畻鍙敤妯″瀷
   const result: string[] = [];
   for (const modelName of provider.model || []) {
     const functionCalling = hasSpecificModelCapability(provider, modelName, 'function_calling');
@@ -82,27 +76,25 @@ const getAvailableModels = (provider: IProvider): string[] => {
     }
   }
 
-  // 缓存结果
+  // 缂撳瓨缁撴灉
   availableModelsCache.set(cacheKey, result);
   return result;
 };
 
 /**
- * 检查提供商是否有可用的主力对话模型（高效版本）
- * @param provider - 提供商配置
- * @returns true 表示提供商有可用模型，false 表示无可用模型
- */
+ * 妫€鏌ユ彁渚涘晢鏄惁鏈夊彲鐢ㄧ殑涓诲姏瀵硅瘽妯″瀷锛堥珮鏁堢増鏈級
+ * @param provider - 鎻愪緵鍟嗛厤缃? * @returns true 琛ㄧず鎻愪緵鍟嗘湁鍙敤妯″瀷锛宖alse 琛ㄧず鏃犲彲鐢ㄦā鍨? */
 const hasAvailableModels = (provider: IProvider): boolean => {
-  // 直接使用缓存的结果，避免重复计算
+  // 鐩存帴浣跨敤缂撳瓨鐨勭粨鏋滐紝閬垮厤閲嶅璁＄畻
   const availableModels = getAvailableModels(provider);
   return availableModels.length > 0;
 };
 
 /**
- * 测量 textarea 中指定位置的垂直坐标
- * @param textarea - 目标 textarea 元素
- * @param position - 文本位置
- * @returns 该位置的垂直像素坐标
+ * 娴嬮噺 textarea 涓寚瀹氫綅缃殑鍨傜洿鍧愭爣
+ * @param textarea - 鐩爣 textarea 鍏冪礌
+ * @param position - 鏂囨湰浣嶇疆
+ * @returns 璇ヤ綅缃殑鍨傜洿鍍忕礌鍧愭爣
  */
 const measureCaretTop = (textarea: HTMLTextAreaElement, position: number): number => {
   const textBefore = textarea.value.slice(0, position);
@@ -128,56 +120,34 @@ const measureCaretTop = (textarea: HTMLTextAreaElement, position: number): numbe
 };
 
 /**
- * 滚动 textarea 使光标位于视口最后一行
- * @param textarea - 目标 textarea 元素
- * @param caretTop - 光标的垂直坐标
- */
+ * 婊氬姩 textarea 浣垮厜鏍囦綅浜庤鍙ｆ渶鍚庝竴琛? * @param textarea - 鐩爣 textarea 鍏冪礌
+ * @param caretTop - 鍏夋爣鐨勫瀭鐩村潗鏍? */
 const scrollCaretToLastLine = (textarea: HTMLTextAreaElement, caretTop: number): void => {
   const style = getComputedStyle(textarea);
   const lineHeight = parseInt(style.lineHeight, 10) || 20;
-  // 滚动使光标位于视口最后一行
+  // 婊氬姩浣垮厜鏍囦綅浜庤鍙ｆ渶鍚庝竴琛?
   textarea.scrollTop = Math.max(0, caretTop - textarea.clientHeight + lineHeight);
 };
 
 const useModelList = () => {
-  const { geminiModeOptions, isGoogleAuth } = useGeminiGoogleAuthModels();
   const { data: modelConfig } = useSWR('model.config.welcome', () => {
     return ipcBridge.mode.getModelConfig.invoke().then((data) => {
       return (data || []).filter((platform) => !!platform.model.length);
     });
   });
 
-  const geminiModelValues = useMemo(() => geminiModeOptions.map((option) => option.value), [geminiModeOptions]);
-
   const modelList = useMemo(() => {
-    let allProviders: IProvider[] = [];
-
-    if (isGoogleAuth) {
-      const geminiProvider: IProvider = {
-        id: uuid(),
-        name: 'Gemini Google Auth',
-        platform: 'gemini-with-google-auth',
-        baseUrl: '',
-        apiKey: '',
-        model: geminiModelValues,
-        capabilities: [{ type: 'text' }, { type: 'vision' }, { type: 'function_calling' }],
-      };
-      allProviders = [geminiProvider, ...(modelConfig || [])];
-    } else {
-      allProviders = modelConfig || [];
-    }
-
-    // 过滤出有可用主力模型的提供商
+    const allProviders = modelConfig || [];
+    // 杩囨护鍑烘湁鍙敤涓诲姏妯″瀷鐨勬彁渚涘晢
     return allProviders.filter(hasAvailableModels);
-  }, [geminiModelValues, isGoogleAuth, modelConfig]);
+  }, [modelConfig]);
 
-  return { modelList, isGoogleAuth, geminiModeOptions };
+  return { modelList };
 };
 
-// Agent Logo 映射 (custom uses Robot icon from @icon-park/react)
+// Agent Logo 鏄犲皠 (custom uses Robot icon from @icon-park/react)
 const AGENT_LOGO_MAP: Partial<Record<AcpBackend, string>> = {
   claude: ClaudeLogo,
-  gemini: GeminiLogo,
   qwen: QwenLogo,
   codex: CodexLogo,
   codebuddy: CodeBuddyLogo,
@@ -195,7 +165,6 @@ const AGENT_LOGO_MAP: Partial<Record<AcpBackend, string>> = {
 };
 const CUSTOM_AVATAR_IMAGE_MAP: Record<string, string> = {
   'cowork.svg': coworkSvg,
-  '🛠️': coworkSvg,
 };
 
 const Guid: React.FC = () => {
@@ -205,7 +174,7 @@ const Guid: React.FC = () => {
   const { activeBorderColor, inactiveBorderColor, activeShadow } = useInputFocusRing();
   const localeKey = resolveLocaleKey(i18n.language);
 
-  // 打开外部链接 / Open external link
+  // 鎵撳紑澶栭儴閾炬帴 / Open external link
   const openLink = useCallback(async (url: string) => {
     try {
       await ipcBridge.shell.openExternal.invoke(url);
@@ -237,42 +206,26 @@ const Guid: React.FC = () => {
     [activeBorderColor, activeShadow, inactiveBorderColor]
   );
 
-  // 从 location.state 中读取 workspace（从 tabs 的添加按钮传递）
+  // 浠?location.state 涓鍙?workspace锛堜粠 tabs 鐨勬坊鍔犳寜閽紶閫掞級
   useEffect(() => {
     const state = location.state as { workspace?: string } | null;
     if (state?.workspace) {
       setDir(state.workspace);
     }
   }, [location.state]);
-  const { modelList, isGoogleAuth, geminiModeOptions } = useModelList();
-  const geminiModeLookup = useMemo(() => {
-    const lookup = new Map<string, (typeof geminiModeOptions)[number]>();
-    geminiModeOptions.forEach((option) => lookup.set(option.value, option));
-    return lookup;
-  }, [geminiModeOptions]);
-  const formatGeminiModelLabel = useCallback(
-    (provider: { platform?: string } | undefined, modelName?: string) => {
-      if (!modelName) return '';
-      const isGoogleProvider = provider?.platform?.toLowerCase().includes('gemini-with-google-auth');
-      if (isGoogleProvider) {
-        return geminiModeLookup.get(modelName)?.label || modelName;
-      }
-      return modelName;
-    },
-    [geminiModeLookup]
-  );
-  // 记录当前选中的 provider+model，方便列表刷新时判断是否仍可用
+  const { modelList } = useModelList();
+  // 璁板綍褰撳墠閫変腑鐨?provider+model锛屾柟渚垮垪琛ㄥ埛鏂版椂鍒ゆ柇鏄惁浠嶅彲鐢?
   const selectedModelKeyRef = useRef<string | null>(null);
-  // 支持在初始化页展示 Codex（MCP）选项，先做 UI 占位
-  // 对于自定义代理，使用 "custom:uuid" 格式来区分多个自定义代理
+  // 鏀寔鍦ㄥ垵濮嬪寲椤靛睍绀?Codex锛圡CP锛夐€夐」锛屽厛鍋?UI 鍗犱綅
+  // 瀵逛簬鑷畾涔変唬鐞嗭紝浣跨敤 "custom:uuid" 鏍煎紡鏉ュ尯鍒嗗涓嚜瀹氫箟浠ｇ悊
   // For custom agents, we store "custom:uuid" format to distinguish between multiple custom agents
-  const [selectedAgentKey, _setSelectedAgentKey] = useState<string>('gemini');
+  const [selectedAgentKey, _setSelectedAgentKey] = useState<string>('codex');
 
-  // 封装 setSelectedAgentKey 以同时保存到 storage
+  // 灏佽 setSelectedAgentKey 浠ュ悓鏃朵繚瀛樺埌 storage
   // Wrap setSelectedAgentKey to also save to storage
   const setSelectedAgentKey = useCallback((key: string) => {
     _setSelectedAgentKey(key);
-    // 保存选择到 storage / Save selection to storage
+    // 淇濆瓨閫夋嫨鍒?storage / Save selection to storage
     ConfigStorage.set('guid.lastSelectedAgent', key).catch((error) => {
       console.error('Failed to save selected agent:', error);
     });
@@ -301,8 +254,7 @@ const Guid: React.FC = () => {
   }, [availableAgents]);
 
   /**
-   * 获取代理的唯一选择键
-   * 对于自定义代理返回 "custom:uuid"，其他代理返回 backend 类型
+   * 鑾峰彇浠ｇ悊鐨勫敮涓€閫夋嫨閿?   * 瀵逛簬鑷畾涔変唬鐞嗚繑鍥?"custom:uuid"锛屽叾浠栦唬鐞嗚繑鍥?backend 绫诲瀷
    * Helper to get agent key for selection
    * Returns "custom:uuid" for custom agents, backend type for others
    */
@@ -311,8 +263,7 @@ const Guid: React.FC = () => {
   };
 
   /**
-   * 通过选择键查找代理
-   * 支持 "custom:uuid" 格式和普通 backend 类型
+   * 閫氳繃閫夋嫨閿煡鎵句唬鐞?   * 鏀寔 "custom:uuid" 鏍煎紡鍜屾櫘閫?backend 绫诲瀷
    * Helper to find agent by key
    * Supports both "custom:uuid" format and plain backend type
    */
@@ -339,7 +290,7 @@ const Guid: React.FC = () => {
     return availableAgents?.find((a) => a.backend === key);
   };
 
-  // 获取选中的后端类型（向后兼容）/ Get the selected backend type (for backward compatibility)
+  // 鑾峰彇閫変腑鐨勫悗绔被鍨嬶紙鍚戝悗鍏煎锛? Get the selected backend type (for backward compatibility)
   const selectedAgent = selectedAgentKey.startsWith('custom:') ? 'custom' : (selectedAgentKey as AcpBackend);
   const selectedAgentInfo = useMemo(() => findAgentByKey(selectedAgentKey), [selectedAgentKey, availableAgents, customAgents]);
   const isPresetAgent = Boolean(selectedAgentInfo?.isPreset);
@@ -351,8 +302,7 @@ const Guid: React.FC = () => {
   const mentionMatchRegex = useMemo(() => /(?:^|\s)@([^\s@]*)$/, []);
 
   /**
-   * 生成唯一模型 key（providerId:model）
-   * Build a unique key for provider/model pair
+   * 鐢熸垚鍞竴妯″瀷 key锛坧roviderId:model锛?   * Build a unique key for provider/model pair
    */
   const buildModelKey = (providerId?: string, modelName?: string) => {
     if (!providerId || !modelName) return null;
@@ -360,7 +310,7 @@ const Guid: React.FC = () => {
   };
 
   /**
-   * 检查当前 key 是否仍存在于新模型列表中
+   * 妫€鏌ュ綋鍓?key 鏄惁浠嶅瓨鍦ㄤ簬鏂版ā鍨嬪垪琛ㄤ腑
    * Check if selected model key still exists in the new provider list
    */
   const isModelKeyAvailable = (key: string | null, providers?: IProvider[]) => {
@@ -372,9 +322,9 @@ const Guid: React.FC = () => {
   };
 
   const setCurrentModel = async (modelInfo: TProviderWithModel) => {
-    // 记录最新的选中 key，避免列表刷新后被错误重置
+    // 璁板綍鏈€鏂扮殑閫変腑 key锛岄伩鍏嶅垪琛ㄥ埛鏂板悗琚敊璇噸缃?
     selectedModelKeyRef.current = buildModelKey(modelInfo.id, modelInfo.useModel);
-    await ConfigStorage.set('gemini.defaultModel', { id: modelInfo.id, useModel: modelInfo.useModel }).catch((error) => {
+    await ConfigStorage.set('guid.defaultModel', { id: modelInfo.id, useModel: modelInfo.useModel }).catch((error) => {
       console.error('Failed to save default model:', error);
     });
     _setCurrentModel(modelInfo);
@@ -382,41 +332,39 @@ const Guid: React.FC = () => {
   const navigate = useNavigate();
   const _layout = useLayoutContext();
 
-  // 处理粘贴的文件（追加模式，支持多次粘贴）
+  // 澶勭悊绮樿创鐨勬枃浠讹紙杩藉姞妯″紡锛屾敮鎸佸娆＄矘璐达級
   // Handle pasted files (append mode to support multiple pastes)
   const handleFilesPasted = useCallback((pastedFiles: FileMetadata[]) => {
     const filePaths = pastedFiles.map((file) => file.path);
-    // 粘贴操作追加到现有文件列表
-    // Paste operation appends to existing files
+    // 绮樿创鎿嶄綔杩藉姞鍒扮幇鏈夋枃浠跺垪琛?    // Paste operation appends to existing files
     setFiles((prevFiles) => [...prevFiles, ...filePaths]);
     setDir('');
   }, []);
 
-  // 处理通过对话框上传的文件（追加模式）
+  // 澶勭悊閫氳繃瀵硅瘽妗嗕笂浼犵殑鏂囦欢锛堣拷鍔犳ā寮忥級
   // Handle files uploaded via dialog (append mode)
   const handleFilesUploaded = useCallback((uploadedPaths: string[]) => {
     setFiles((prevFiles) => [...prevFiles, ...uploadedPaths]);
   }, []);
 
   const handleRemoveFile = useCallback((targetPath: string) => {
-    // 删除初始化面板中的已选文件 / Remove files already selected on the welcome screen
+    // 鍒犻櫎鍒濆鍖栭潰鏉夸腑鐨勫凡閫夋枃浠?/ Remove files already selected on the welcome screen
     setFiles((prevFiles) => prevFiles.filter((file) => file !== targetPath));
   }, []);
 
-  // 使用拖拽 hook（拖拽视为粘贴操作，追加到现有文件）
+  // 浣跨敤鎷栨嫿 hook锛堟嫋鎷借涓虹矘璐存搷浣滐紝杩藉姞鍒扮幇鏈夋枃浠讹級
   // Use drag upload hook (drag is treated like paste, appends to existing files)
   const { isFileDragging, dragHandlers } = useDragUpload({
     supportedExts: allSupportedExts,
     onFilesAdded: handleFilesPasted,
   });
 
-  // 使用共享的PasteService集成（粘贴操作追加到现有文件）
-  // Use shared PasteService integration (paste appends to existing files)
+  // 浣跨敤鍏变韩鐨凱asteService闆嗘垚锛堢矘璐存搷浣滆拷鍔犲埌鐜版湁鏂囦欢锛?  // Use shared PasteService integration (paste appends to existing files)
   const { onPaste, onFocus } = usePasteService({
     supportedExts: allSupportedExts,
     onFilesAdded: handleFilesPasted,
     onTextPaste: (text: string) => {
-      // 按光标位置插入文本，保持现有内容
+      // 鎸夊厜鏍囦綅缃彃鍏ユ枃鏈紝淇濇寔鐜版湁鍐呭
       const textarea = document.activeElement as HTMLTextAreaElement | null;
       if (textarea && textarea.tagName === 'TEXTAREA') {
         const start = textarea.selectionStart ?? textarea.value.length;
@@ -531,24 +479,23 @@ const Guid: React.FC = () => {
     [filteredMentionOptions, mentionMenuSelectedKey, selectMentionAgent, t]
   );
 
-  // 获取可用的 ACP agents - 基于全局标记位
+  // 鑾峰彇鍙敤鐨?ACP agents - 鍩轰簬鍏ㄥ眬鏍囪浣?
   const { data: availableAgentsData } = useSWR('acp.agents.available', async () => {
     const result = await ipcBridge.acpConversation.getAvailableAgents.invoke();
     if (result.success) {
-      // 过滤掉检测到的gemini命令，只保留内置Gemini
-      return result.data.filter((agent) => !(agent.backend === 'gemini' && agent.cliPath));
+      return result.data;
     }
     return [];
   });
 
-  // 更新本地状态
+  // 鏇存柊鏈湴鐘舵€?
   useEffect(() => {
     if (availableAgentsData) {
       setAvailableAgents(availableAgentsData);
     }
   }, [availableAgentsData]);
 
-  // 加载上次选择的 agent / Load last selected agent
+  // 鍔犺浇涓婃閫夋嫨鐨?agent / Load last selected agent
   useEffect(() => {
     if (!availableAgents || availableAgents.length === 0) return;
 
@@ -619,7 +566,7 @@ const Guid: React.FC = () => {
 
   // Read legacy yoloMode config (from old SecurityModalContent settings).
   // If yoloMode was enabled for the selected agent, pre-select YOLO mode.
-  // If false, keep default — no action needed.
+  // If false, keep default 鈥?no action needed.
   useEffect(() => {
     setSelectedMode('default'); // Reset on agent change
     if (!selectedAgent) return;
@@ -627,10 +574,7 @@ const Guid: React.FC = () => {
     const readLegacyYoloMode = async () => {
       try {
         let yoloMode = false;
-        if (selectedAgent === 'gemini') {
-          const config = await ConfigStorage.get('gemini.config');
-          yoloMode = config?.yoloMode ?? false;
-        } else if (selectedAgent === 'codex') {
+        if (selectedAgent === 'codex') {
           const config = await ConfigStorage.get('codex.config');
           yoloMode = config?.yoloMode ?? false;
         } else if (selectedAgent !== 'custom' && selectedAgent !== 'openclaw-gateway' && selectedAgent !== 'nanobot') {
@@ -641,7 +585,6 @@ const Guid: React.FC = () => {
           // Map to the correct yolo mode value for this backend
           const yoloValues: Record<string, string> = {
             claude: 'bypassPermissions',
-            gemini: 'yolo',
             codex: 'yolo',
             iflow: 'yolo',
             qwen: 'yolo',
@@ -658,11 +601,11 @@ const Guid: React.FC = () => {
   const { compositionHandlers, isComposing } = useCompositionInput();
 
   /**
-   * 解析预设助手的 rules 和 skills
+   * 瑙ｆ瀽棰勮鍔╂墜鐨?rules 鍜?skills
    * Resolve preset assistant rules and skills
    *
-   * - rules: 系统规则，在会话初始化时注入到 userMemory
-   * - skills: 技能定义，在首次请求时注入到消息前缀
+   * - rules: 绯荤粺瑙勫垯锛屽湪浼氳瘽鍒濆鍖栨椂娉ㄥ叆鍒?userMemory
+   * - skills: 鎶€鑳藉畾涔夛紝鍦ㄩ娆¤姹傛椂娉ㄥ叆鍒版秷鎭墠缂€
    */
   const resolvePresetRulesAndSkills = useCallback(
     async (agentInfo: { backend: AcpBackend; customAgentId?: string; context?: string } | undefined): Promise<{ rules?: string; skills?: string }> => {
@@ -677,7 +620,7 @@ const Guid: React.FC = () => {
       let rules = '';
       let skills = '';
 
-      // 1. 加载 rules / Load rules
+      // 1. 鍔犺浇 rules / Load rules
       try {
         rules = await ipcBridge.fs.readAssistantRule.invoke({
           assistantId: customAgentId,
@@ -687,17 +630,17 @@ const Guid: React.FC = () => {
         console.warn(`Failed to load rules for ${customAgentId}:`, error);
       }
 
-      // 2. 加载 skills / Load skills
+      // 2. 鍔犺浇 skills / Load skills
       try {
         skills = await ipcBridge.fs.readAssistantSkill.invoke({
           assistantId: customAgentId,
           locale: localeKey,
         });
       } catch (error) {
-        // skills 可能不存在，这是正常的 / skills may not exist, this is normal
+        // skills 鍙兘涓嶅瓨鍦紝杩欐槸姝ｅ父鐨?/ skills may not exist, this is normal
       }
 
-      // 3. Fallback: 如果是内置助手且文件为空，从内置资源加载
+      // 3. Fallback: 濡傛灉鏄唴缃姪鎵嬩笖鏂囦欢涓虹┖锛屼粠鍐呯疆璧勬簮鍔犺浇
       // Fallback: If builtin assistant and files are empty, load from builtin resources
       if (customAgentId.startsWith('builtin-')) {
         const presetId = customAgentId.replace('builtin-', '');
@@ -733,29 +676,19 @@ const Guid: React.FC = () => {
     [localeKey]
   );
 
-  // 保持向后兼容的 resolvePresetContext（只返回 rules）
-  // Backward compatible resolvePresetContext (returns only rules)
-  const resolvePresetContext = useCallback(
-    async (agentInfo: { backend: AcpBackend; customAgentId?: string; context?: string } | undefined): Promise<string | undefined> => {
-      const { rules } = await resolvePresetRulesAndSkills(agentInfo);
-      return rules;
-    },
-    [resolvePresetRulesAndSkills]
-  );
-
   const resolvePresetAgentType = useCallback(
     (agentInfo: { backend: AcpBackend; customAgentId?: string } | undefined) => {
-      if (!agentInfo) return 'gemini';
-      // 非 custom 的 backend，直接返回其 backend 类型（如 'claude', 'codex' 等）
+      if (!agentInfo) return 'codex';
+      // 闈?custom 鐨?backend锛岀洿鎺ヨ繑鍥炲叾 backend 绫诲瀷锛堝 'claude', 'codex' 绛夛級
       // For non-custom backends, return the backend type directly (e.g., 'claude', 'codex', etc.)
       if (agentInfo.backend !== 'custom') return agentInfo.backend as PresetAgentType;
       const customAgent = customAgents.find((agent) => agent.id === agentInfo.customAgentId);
-      return customAgent?.presetAgentType || 'gemini';
+      return customAgent?.presetAgentType || 'codex';
     },
     [customAgents]
   );
 
-  // 解析助手启用的 skills 列表 / Resolve enabled skills for the assistant
+  // 瑙ｆ瀽鍔╂墜鍚敤鐨?skills 鍒楄〃 / Resolve enabled skills for the assistant
   const resolveEnabledSkills = useCallback(
     (agentInfo: { backend: AcpBackend; customAgentId?: string } | undefined): string[] | undefined => {
       if (!agentInfo) return undefined;
@@ -767,37 +700,30 @@ const Guid: React.FC = () => {
   );
 
   /**
-   * 检查 Main Agent 类型是否可用（用于预设助手的自动切换判断）
-   * Check if a Main Agent type is available (for preset assistant auto-switch)
+   * 妫€鏌?Main Agent 绫诲瀷鏄惁鍙敤锛堢敤浜庨璁惧姪鎵嬬殑鑷姩鍒囨崲鍒ゆ柇锛?   * Check if a Main Agent type is available (for preset assistant auto-switch)
    *
-   * - gemini: 登录 Google OAuth 或有可用的 API key 模型
-   * - claude/codex/opencode: 检查 availableAgents 中是否有对应的 backend（CLI 已安装）
+   * - claude/codex/opencode: 妫€鏌?availableAgents 涓槸鍚︽湁瀵瑰簲鐨?backend锛圕LI 宸插畨瑁咃級
    */
   const isMainAgentAvailable = useCallback(
     (agentType: PresetAgentType): boolean => {
       if (agentType === 'gemini') {
-        // Gemini Main Agent 可用条件：
-        // 1. 登录了 Google OAuth，或
-        // 2. 有可用的模型（API key）可以选择
-        // Gemini available when: Google OAuth logged in OR has API key models
-        return isGoogleAuth || (modelList != null && modelList.length > 0);
+        return false;
       }
-      // 其他类型检查 availableAgents（CLI 是否已安装）
+      // 鍏朵粬绫诲瀷妫€鏌?availableAgents锛圕LI 鏄惁宸插畨瑁咃級
       // Other types check availableAgents (whether CLI is installed)
       return availableAgents?.some((agent) => agent.backend === agentType) ?? false;
     },
-    [modelList, availableAgents, isGoogleAuth]
+    [availableAgents]
   );
 
   /**
-   * 获取可用的备选 Main Agent
+   * 鑾峰彇鍙敤鐨勫閫?Main Agent
    * Get an available fallback Main Agent
    *
-   * 优先级: gemini > claude > codex > opencode
-   * Priority: gemini > claude > codex > opencode
+   * Priority: claude > codex > codebuddy > opencode
    */
   const getAvailableFallbackAgent = useCallback((): PresetAgentType | null => {
-    const fallbackOrder: PresetAgentType[] = ['gemini', 'claude', 'codex', 'codebuddy', 'opencode'];
+    const fallbackOrder: PresetAgentType[] = ['claude', 'codex', 'codebuddy', 'opencode'];
     for (const agentType of fallbackOrder) {
       if (isMainAgentAvailable(agentType)) {
         return agentType;
@@ -807,28 +733,23 @@ const Guid: React.FC = () => {
   }, [isMainAgentAvailable]);
 
   /**
-   * 获取助手的有效 Main Agent 类型（仅用于 UI 显示）
-   * Get the effective Main Agent type for an assistant (for UI display only)
+   * 鑾峰彇鍔╂墜鐨勬湁鏁?Main Agent 绫诲瀷锛堜粎鐢ㄤ簬 UI 鏄剧ず锛?   * Get the effective Main Agent type for an assistant (for UI display only)
    *
-   * 注意：不再提前计算 fallback，因为 CLI agents 需要异步健康检查
-   * 实际的 agent 切换在发送时通过健康检查进行
-   * Note: No longer pre-computing fallback since CLI agents require async health check
+   * 娉ㄦ剰锛氫笉鍐嶆彁鍓嶈绠?fallback锛屽洜涓?CLI agents 闇€瑕佸紓姝ュ仴搴锋鏌?   * 瀹為檯鐨?agent 鍒囨崲鍦ㄥ彂閫佹椂閫氳繃鍋ュ悍妫€鏌ヨ繘琛?   * Note: No longer pre-computing fallback since CLI agents require async health check
    * Actual agent switching happens at send time via health check
    */
   const getEffectiveAgentType = useCallback(
     (agentInfo: { backend: AcpBackend; customAgentId?: string } | undefined): { agentType: PresetAgentType; isFallback: boolean; originalType: PresetAgentType; isAvailable: boolean } => {
       const originalType = resolvePresetAgentType(agentInfo);
 
-      // 检查原始类型是否可用 / Check if original type is available
-      // 对于 Gemini：可以同步检查（登录状态或 API key）
-      // 对于 CLI agents：这里只检查 CLI 安装，真正的认证检查在发送时进行
+      // 妫€鏌ュ師濮嬬被鍨嬫槸鍚﹀彲鐢?/ Check if original type is available
+      // 瀵逛簬 Gemini锛氬彲浠ュ悓姝ユ鏌ワ紙鐧诲綍鐘舵€佹垨 API key锛?      // 瀵逛簬 CLI agents锛氳繖閲屽彧妫€鏌?CLI 瀹夎锛岀湡姝ｇ殑璁よ瘉妫€鏌ュ湪鍙戦€佹椂杩涜
       // For Gemini: can check synchronously (login status or API key)
       // For CLI agents: only checks CLI installation here, real auth check happens at send time
       const isAvailable = isMainAgentAvailable(originalType);
 
-      // 不再提前设置 isFallback，因为 CLI agents 的可用性需要异步检查
-      // No longer setting isFallback upfront since CLI agent availability requires async check
-      // 用户会看到原始选择的 agent，实际切换在发送时进行
+      // 涓嶅啀鎻愬墠璁剧疆 isFallback锛屽洜涓?CLI agents 鐨勫彲鐢ㄦ€ч渶瑕佸紓姝ユ鏌?      // No longer setting isFallback upfront since CLI agent availability requires async check
+      // 鐢ㄦ埛浼氱湅鍒板師濮嬮€夋嫨鐨?agent锛屽疄闄呭垏鎹㈠湪鍙戦€佹椂杩涜
       // User sees their originally selected agent, actual switch happens at send time
       return { agentType: originalType, isFallback: false, originalType, isAvailable };
     },
@@ -836,45 +757,17 @@ const Guid: React.FC = () => {
   );
 
   /**
-   * 当前选中助手的有效 Agent 类型（用于 UI 显示）
-   * Effective agent type for the currently selected assistant (for UI display)
+   * 褰撳墠閫変腑鍔╂墜鐨勬湁鏁?Agent 绫诲瀷锛堢敤浜?UI 鏄剧ず锛?   * Effective agent type for the currently selected assistant (for UI display)
    */
   const currentEffectiveAgentInfo = useMemo(() => {
     if (!isPresetAgent) {
-      // 非预设助手，检查选中的 agent 是否可用
+      // 闈為璁惧姪鎵嬶紝妫€鏌ラ€変腑鐨?agent 鏄惁鍙敤
       // For non-preset agents, check if selected agent is available
       const isAvailable = isMainAgentAvailable(selectedAgent as PresetAgentType);
       return { agentType: selectedAgent as PresetAgentType, isFallback: false, originalType: selectedAgent as PresetAgentType, isAvailable };
     }
     return getEffectiveAgentType(selectedAgentInfo);
   }, [isPresetAgent, selectedAgent, selectedAgentInfo, getEffectiveAgentType, isMainAgentAvailable]);
-
-  /**
-   * 自动切换仅适用于 Gemini agent（可以同步检查可用性）
-   * Auto-switch only applies to Gemini agent (availability can be checked synchronously)
-   *
-   * CLI agents (claude, codex, opencode) 需要异步健康检查来验证认证状态，
-   * 这些检查在用户发送消息时进行，而不是在组件加载时。
-   * CLI agents require async health checks to verify authentication status,
-   * which are performed when the user sends a message, not on component mount.
-   */
-  useEffect(() => {
-    // 跳过初始状态（availableAgents 还未加载）
-    // Skip initial state (availableAgents not yet loaded)
-    if (!availableAgents || availableAgents.length === 0) return;
-
-    // 只对 Gemini 进行自动切换（因为 Gemini 可用性可以同步检查）
-    // Only auto-switch for Gemini (because Gemini availability can be checked synchronously)
-    // CLI agents 的认证状态需要异步健康检查，在发送时验证
-    // CLI agents auth status requires async health check, verified at send time
-    if (selectedAgent === 'gemini' && !currentEffectiveAgentInfo.isAvailable) {
-      // Gemini 不可用（未登录 Google 且无 API key），提示用户但不自动切换
-      // Gemini unavailable (not logged into Google and no API key), prompt user but don't auto-switch
-      // 自动切换在发送时通过健康检查进行
-      // Auto-switch is done at send time via health check
-      console.log('[Guid] Gemini is not configured. Will check for alternatives when sending.');
-    }
-  }, [availableAgents, currentEffectiveAgentInfo, selectedAgent]);
 
   const refreshCustomAgents = useCallback(async () => {
     try {
@@ -906,28 +799,32 @@ const Guid: React.FC = () => {
   );
 
   const handleSend = async () => {
-    // 用户明确选择的目录 -> customWorkspace = true, 使用用户选择的目录
-    // 未选择时 -> customWorkspace = false, 传空让后端创建临时目录 (gemini-temp-xxx)
+    // 鐢ㄦ埛鏄庣‘閫夋嫨鐨勭洰褰?-> customWorkspace = true, 浣跨敤鐢ㄦ埛閫夋嫨鐨勭洰褰?
+    // 鏈€夋嫨鏃?-> customWorkspace = false, 浼犵┖璁╁悗绔垱寤轰复鏃剁洰褰?(gemini-temp-xxx)
     const isCustomWorkspace = !!dir;
-    const finalWorkspace = dir || ''; // 不指定时传空，让后端创建临时目录
+    const finalWorkspace = dir || ''; // 涓嶆寚瀹氭椂浼犵┖锛岃鍚庣鍒涘缓涓存椂鐩綍
 
     const agentInfo = selectedAgentInfo;
     const isPreset = isPresetAgent;
+    const selectedAgentForRouting = selectedAgent === 'gemini' ? 'codex' : selectedAgent;
 
-    // 获取有效的 Agent 类型（考虑可用性回退）/ Get effective agent type (with availability fallback)
-    // 注意：isAvailable 只检查 CLI 安装状态，真正的认证检查在发送时通过健康检查进行
+    if (!currentModel) {
+      Message.warning(t('conversation.welcome.selectModel'));
+      return;
+    }
+
+    // 鑾峰彇鏈夋晥鐨?Agent 绫诲瀷锛堣€冭檻鍙敤鎬у洖閫€锛? Get effective agent type (with availability fallback)
+    // 娉ㄦ剰锛歩sAvailable 鍙鏌?CLI 瀹夎鐘舵€侊紝鐪熸鐨勮璇佹鏌ュ湪鍙戦€佹椂閫氳繃鍋ュ悍妫€鏌ヨ繘琛?
     // Note: isAvailable only checks CLI installation, real auth check happens at send time via health check
     const { agentType: effectiveAgentType } = getEffectiveAgentType(agentInfo);
 
-    // 加载 rules（skills 已迁移到 SkillManager）/ Load rules (skills migrated to SkillManager)
+    // 鍔犺浇 rules锛坰kills 宸茶縼绉诲埌 SkillManager锛? Load rules (skills migrated to SkillManager)
     const { rules: presetRules } = await resolvePresetRulesAndSkills(agentInfo);
-    // 获取启用的 skills 列表 / Get enabled skills list
+    // 鑾峰彇鍚敤鐨?skills 鍒楄〃 / Get enabled skills list
     const enabledSkills = resolveEnabledSkills(agentInfo);
 
-    // 对于预设助手，当 Main Agent 不可用时自动切换到下一个可用的 Agent
-    // 会话类型会随之改变（如 gemini → acp），但 presetAssistantId/rules/skills 保持不变
+    // 瀵逛簬棰勮鍔╂墜锛屽綋 Main Agent 涓嶅彲鐢ㄦ椂鑷姩鍒囨崲鍒颁笅涓€涓彲鐢ㄧ殑 Agent
     // For preset assistants, auto-switch to next available agent when Main Agent is unavailable
-    // Conversation type changes accordingly (e.g., gemini → acp), but presetAssistantId/rules/skills are preserved
     let finalEffectiveAgentType = effectiveAgentType;
     if (isPreset && !isMainAgentAvailable(effectiveAgentType)) {
       const fallback = getAvailableFallbackAgent();
@@ -943,89 +840,11 @@ const Guid: React.FC = () => {
       }
     }
 
-    // 默认情况使用 Gemini，或 Preset 配置为 Gemini
-    // Default case uses Gemini, or Preset configured as Gemini
-    if (!selectedAgent || selectedAgent === 'gemini' || (isPreset && finalEffectiveAgentType === 'gemini')) {
-      // 当没有 currentModel 但选择了 Gemini 时，仍然创建 Gemini 会话
-      // 让会话面板的 GeminiSendBox 处理 agent 可用性检查和自动切换
-      // When no currentModel but Gemini is selected, still create Gemini conversation
-      // Let the conversation panel's GeminiSendBox handle agent availability check and auto-switch
-      const placeholderModel = currentModel || {
-        id: 'gemini-placeholder',
-        name: 'Gemini',
-        useModel: 'default',
-        platform: 'gemini-with-google-auth' as const,
-        baseUrl: '',
-        apiKey: '',
-      };
-      try {
-        const presetAssistantIdToPass = isPreset ? agentInfo?.customAgentId : undefined;
-
-        const conversation = await ipcBridge.conversation.create.invoke({
-          type: 'gemini',
-          name: input,
-          model: placeholderModel,
-          extra: {
-            defaultFiles: files,
-            workspace: finalWorkspace,
-            customWorkspace: isCustomWorkspace,
-            // 只有当模型使用 Google OAuth 认证时才启用 Google 搜索
-            // Only enable Google search when the model uses Google OAuth authentication
-            webSearchEngine: placeholderModel.platform === 'gemini-with-google-auth' || placeholderModel.platform === 'gemini-vertex-ai' ? 'google' : 'default',
-            // 传递 rules（skills 通过 SkillManager 加载）
-            // Pass rules (skills loaded via SkillManager)
-            presetRules: isPreset ? presetRules : undefined,
-            // 启用的 skills 列表 / Enabled skills list
-            enabledSkills: isPreset ? enabledSkills : undefined,
-            // 预设助手 ID，用于在会话面板显示助手名称和头像
-            // Preset assistant ID for displaying name and avatar in conversation panel
-            presetAssistantId: presetAssistantIdToPass,
-            // Initial session mode from Guid page mode selector.
-            // Always pass the value (including 'default') so the agent manager can
-            // distinguish "user explicitly chose default" from "no selection made".
-            sessionMode: selectedMode,
-          },
-        });
-
-        if (!conversation || !conversation.id) {
-          throw new Error('Failed to create conversation - conversation object is null or missing id');
-        }
-
-        // 更新 workspace 时间戳，确保分组会话能正确排序（仅自定义工作空间）
-        if (isCustomWorkspace) {
-          closeAllTabs();
-          updateWorkspaceTime(finalWorkspace);
-          // 将新会话添加到 tabs
-          openTab(conversation);
-        }
-
-        // 立即触发刷新，让左侧栏开始加载新会话（在导航前）
-        emitter.emit('chat.history.refresh');
-
-        // Store initial message to sessionStorage for GeminiSendBox to send after navigation
-        // This enables instant page transition without waiting for API response
-        const workspacePath = conversation.extra?.workspace || '';
-        const displayMessage = buildDisplayMessage(input, files, workspacePath);
-        const initialMessage = {
-          input: displayMessage,
-          files: files.length > 0 ? files : undefined,
-        };
-        sessionStorage.setItem(`gemini_initial_message_${conversation.id}`, JSON.stringify(initialMessage));
-
-        // Navigate immediately for instant page transition
-        void navigate(`/conversation/${conversation.id}`);
-      } catch (error: unknown) {
-        // 静默处理错误，让会话面板的 AgentSetupCard 来处理
-        // Silently handle errors, let conversation panel's AgentSetupCard handle it
-        console.error('Failed to create Gemini conversation:', error);
-        throw error; // Re-throw to prevent input clearing
-      }
-      return;
-    } else if (selectedAgent === 'codex' || finalEffectiveAgentType === 'codex') {
+    if (selectedAgentForRouting === 'codex' || finalEffectiveAgentType === 'codex') {
       // Codex conversation type (including preset with codex agent type)
       const codexAgentInfo = agentInfo || findAgentByKey(selectedAgentKey);
 
-      // 创建 Codex 会话并保存初始消息，由对话页负责发送
+      // 鍒涘缓 Codex 浼氳瘽骞朵繚瀛樺垵濮嬫秷鎭紝鐢卞璇濋〉璐熻矗鍙戦€?
       try {
         const conversation = await ipcBridge.conversation.create.invoke({
           type: 'codex',
@@ -1037,10 +856,9 @@ const Guid: React.FC = () => {
             customWorkspace: isCustomWorkspace,
             // Pass preset context (rules only)
             presetContext: isPreset ? presetRules : undefined,
-            // 启用的 skills 列表（通过 SkillManager 加载）/ Enabled skills list (loaded via SkillManager)
+            // 鍚敤鐨?skills 鍒楄〃锛堥€氳繃 SkillManager 鍔犺浇锛? Enabled skills list (loaded via SkillManager)
             enabledSkills: isPreset ? enabledSkills : undefined,
-            // 预设助手 ID，用于在会话面板显示助手名称和头像
-            // Preset assistant ID for displaying name and avatar in conversation panel
+            // 棰勮鍔╂墜 ID锛岀敤浜庡湪浼氳瘽闈㈡澘鏄剧ず鍔╂墜鍚嶇О鍜屽ご鍍?            // Preset assistant ID for displaying name and avatar in conversation panel
             presetAssistantId: isPreset ? codexAgentInfo?.customAgentId : undefined,
             // Initial session mode from Guid page mode selector
             sessionMode: selectedMode,
@@ -1052,34 +870,34 @@ const Guid: React.FC = () => {
           return;
         }
 
-        // 更新 workspace 时间戳，确保分组会话能正确排序（仅自定义工作空间）
+        // 鏇存柊 workspace 鏃堕棿鎴筹紝纭繚鍒嗙粍浼氳瘽鑳芥纭帓搴忥紙浠呰嚜瀹氫箟宸ヤ綔绌洪棿锛?
         if (isCustomWorkspace) {
           closeAllTabs();
           updateWorkspaceTime(finalWorkspace);
-          // 将新会话添加到 tabs
+          // 灏嗘柊浼氳瘽娣诲姞鍒?tabs
           openTab(conversation);
         }
 
-        // 立即触发刷新，让左侧栏开始加载新会话（在导航前）
+        // 绔嬪嵆瑙﹀彂鍒锋柊锛岃宸︿晶鏍忓紑濮嬪姞杞芥柊浼氳瘽锛堝湪瀵艰埅鍓嶏級
         emitter.emit('chat.history.refresh');
 
-        // 交给对话页发送，避免事件丢失
+        // 浜ょ粰瀵硅瘽椤靛彂閫侊紝閬垮厤浜嬩欢涓㈠け
         const initialMessage = {
           input,
           files: files.length > 0 ? files : undefined,
         };
         sessionStorage.setItem(`codex_initial_message_${conversation.id}`, JSON.stringify(initialMessage));
 
-        // 然后导航到会话页面
+        // 鐒跺悗瀵艰埅鍒颁細璇濋〉闈?
         await navigate(`/conversation/${conversation.id}`);
       } catch (error: unknown) {
-        // 静默处理错误，让会话面板处理
+        // 闈欓粯澶勭悊閿欒锛岃浼氳瘽闈㈡澘澶勭悊
         // Silently handle errors, let conversation panel handle it
         console.error('Failed to create Codex conversation:', error);
         throw error;
       }
       return;
-    } else if (selectedAgent === 'openclaw-gateway') {
+    } else if (selectedAgentForRouting === 'openclaw-gateway') {
       // OpenClaw Gateway conversation type (WebSocket mode)
       const openclawAgentInfo = agentInfo || findAgentByKey(selectedAgentKey);
 
@@ -1104,10 +922,9 @@ const Guid: React.FC = () => {
               switchedAt: Date.now(),
             },
             // Gateway configuration is handled by OpenClawAgentManager
-            // 启用的 skills 列表（通过 SkillManager 加载）/ Enabled skills list (loaded via SkillManager)
+            // 鍚敤鐨?skills 鍒楄〃锛堥€氳繃 SkillManager 鍔犺浇锛? Enabled skills list (loaded via SkillManager)
             enabledSkills: isPreset ? enabledSkills : undefined,
-            // 预设助手 ID，用于在会话面板显示助手名称和头像
-            // Preset assistant ID for displaying name and avatar in conversation panel
+            // 棰勮鍔╂墜 ID锛岀敤浜庡湪浼氳瘽闈㈡澘鏄剧ず鍔╂墜鍚嶇О鍜屽ご鍍?            // Preset assistant ID for displaying name and avatar in conversation panel
             presetAssistantId: isPreset ? openclawAgentInfo?.customAgentId : undefined,
           },
         });
@@ -1117,15 +934,15 @@ const Guid: React.FC = () => {
           return;
         }
 
-        // 更新 workspace 时间戳，确保分组会话能正确排序（仅自定义工作空间）
+        // 鏇存柊 workspace 鏃堕棿鎴筹紝纭繚鍒嗙粍浼氳瘽鑳芥纭帓搴忥紙浠呰嚜瀹氫箟宸ヤ綔绌洪棿锛?
         if (isCustomWorkspace) {
           closeAllTabs();
           updateWorkspaceTime(finalWorkspace);
-          // 将新会话添加到 tabs
+          // 灏嗘柊浼氳瘽娣诲姞鍒?tabs
           openTab(conversation);
         }
 
-        // 立即触发刷新，让左侧栏开始加载新会话（在导航前）
+        // 绔嬪嵆瑙﹀彂鍒锋柊锛岃宸︿晶鏍忓紑濮嬪姞杞芥柊浼氳瘽锛堝湪瀵艰埅鍓嶏級
         emitter.emit('chat.history.refresh');
 
         // Store initial message to be picked up by the conversation page
@@ -1135,7 +952,7 @@ const Guid: React.FC = () => {
         };
         sessionStorage.setItem(`openclaw_initial_message_${conversation.id}`, JSON.stringify(initialMessage));
 
-        // 然后导航到会话页面
+        // 鐒跺悗瀵艰埅鍒颁細璇濋〉闈?
         await navigate(`/conversation/${conversation.id}`);
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -1143,7 +960,7 @@ const Guid: React.FC = () => {
         throw error;
       }
       return;
-    } else if (selectedAgent === 'nanobot') {
+    } else if (selectedAgentForRouting === 'nanobot') {
       // Nanobot conversation type (standalone CLI agent, not ACP)
       const nanobotAgentInfo = agentInfo || findAgentByKey(selectedAgentKey);
 
@@ -1192,27 +1009,25 @@ const Guid: React.FC = () => {
       // ACP conversation type (including preset with claude agent type)
       // For preset with ACP-routed agent type (claude/opencode), use corresponding backend
       // Check if agent type changed from user selection (due to availability fallback or compatibility switch)
-      const agentTypeChanged = selectedAgent !== finalEffectiveAgentType;
+      const agentTypeChanged = selectedAgentForRouting !== finalEffectiveAgentType;
       const acpBackend: PresetAgentType | undefined = agentTypeChanged
         ? finalEffectiveAgentType // Agent type changed from selection, use the final effective type
         : isPreset && isAcpRoutedPresetType(finalEffectiveAgentType)
           ? finalEffectiveAgentType
-          : selectedAgent;
+          : selectedAgentForRouting;
 
       // Get the agent info for the actual backend being used (might be different from selection after type change)
       const acpAgentInfo = agentTypeChanged ? findAgentByKey(acpBackend as string) : agentInfo || findAgentByKey(selectedAgentKey);
 
-      // 不在 guid 页面做 CLI agents 健康检查和自动切换，让会话面板的 AgentSetupCard 来处理
-      // Don't do CLI agents health check and auto-switch in guid page, let conversation panel's AgentSetupCard handle it
+      // 涓嶅湪 guid 椤甸潰鍋?CLI agents 鍋ュ悍妫€鏌ュ拰鑷姩鍒囨崲锛岃浼氳瘽闈㈡澘鐨?AgentSetupCard 鏉ュ鐞?      // Don't do CLI agents health check and auto-switch in guid page, let conversation panel's AgentSetupCard handle it
 
-      // 不阻止流程，让会话面板处理 agent 可用性
-      // Don't block flow, let conversation panel handle agent availability
+      // 涓嶉樆姝㈡祦绋嬶紝璁╀細璇濋潰鏉垮鐞?agent 鍙敤鎬?      // Don't block flow, let conversation panel handle agent availability
       if (!acpAgentInfo && !isPreset) {
         console.warn(`${acpBackend} CLI not found, but proceeding to let conversation panel handle it.`);
       }
 
       try {
-        // CLI agents (claude, opencode) 使用 ACP 会话类型
+        // CLI agents (claude, opencode) 浣跨敤 ACP 浼氳瘽绫诲瀷
         // CLI agents (claude, opencode) use ACP conversation type
         const conversation = await ipcBridge.conversation.create.invoke({
           type: 'acp',
@@ -1224,15 +1039,14 @@ const Guid: React.FC = () => {
             customWorkspace: isCustomWorkspace,
             backend: acpBackend,
             cliPath: acpAgentInfo?.cliPath,
-            agentName: acpAgentInfo?.name, // 存储自定义代理的配置名称 / Store configured name for custom agents
-            customAgentId: acpAgentInfo?.customAgentId, // 自定义代理的 UUID / UUID for custom agents
+            agentName: acpAgentInfo?.name, // 瀛樺偍鑷畾涔変唬鐞嗙殑閰嶇疆鍚嶇О / Store configured name for custom agents
+            customAgentId: acpAgentInfo?.customAgentId, // 鑷畾涔変唬鐞嗙殑 UUID / UUID for custom agents
             // Pass preset context (rules only)
             presetContext: isPreset ? presetRules : undefined,
-            // 启用的 skills 列表（通过 SkillManager 加载）/ Enabled skills list (loaded via SkillManager)
+            // 鍚敤鐨?skills 鍒楄〃锛堥€氳繃 SkillManager 鍔犺浇锛? Enabled skills list (loaded via SkillManager)
             enabledSkills: isPreset ? enabledSkills : undefined,
-            // 预设助手 ID，用于在会话面板显示助手名称和头像
-            // Preset assistant ID for displaying name and avatar in conversation panel
-            // 使用原始 agentInfo 的 ID，确保 agent 类型切换后仍保留预设助手信息
+            // 棰勮鍔╂墜 ID锛岀敤浜庡湪浼氳瘽闈㈡澘鏄剧ず鍔╂墜鍚嶇О鍜屽ご鍍?            // Preset assistant ID for displaying name and avatar in conversation panel
+            // 浣跨敤鍘熷 agentInfo 鐨?ID锛岀‘淇?agent 绫诲瀷鍒囨崲鍚庝粛淇濈暀棰勮鍔╂墜淇℃伅
             // Use original agentInfo's ID to preserve preset assistant info after agent type fallback
             presetAssistantId: isPreset ? agentInfo?.customAgentId || acpAgentInfo?.customAgentId : undefined,
             // Initial session mode from Guid page mode selector
@@ -1245,15 +1059,15 @@ const Guid: React.FC = () => {
           return;
         }
 
-        // 更新 workspace 时间戳，确保分组会话能正确排序（仅自定义工作空间）
+        // 鏇存柊 workspace 鏃堕棿鎴筹紝纭繚鍒嗙粍浼氳瘽鑳芥纭帓搴忥紙浠呰嚜瀹氫箟宸ヤ綔绌洪棿锛?
         if (isCustomWorkspace) {
           closeAllTabs();
           updateWorkspaceTime(finalWorkspace);
-          // 将新会话添加到 tabs
+          // 灏嗘柊浼氳瘽娣诲姞鍒?tabs
           openTab(conversation);
         }
 
-        // 立即触发刷新，让左侧栏开始加载新会话（在导航前）
+        // 绔嬪嵆瑙﹀彂鍒锋柊锛岃宸︿晶鏍忓紑濮嬪姞杞芥柊浼氳瘽锛堝湪瀵艰埅鍓嶏級
         emitter.emit('chat.history.refresh');
 
         // For ACP, we need to wait for the connection to be ready before sending the message
@@ -1266,10 +1080,10 @@ const Guid: React.FC = () => {
         // Store initial message in sessionStorage to be picked up by the conversation page
         sessionStorage.setItem(`acp_initial_message_${conversation.id}`, JSON.stringify(initialMessage));
 
-        // 然后导航到会话页面
+        // 鐒跺悗瀵艰埅鍒颁細璇濋〉闈?
         await navigate(`/conversation/${conversation.id}`);
       } catch (error: unknown) {
-        // 静默处理错误，让会话面板的 AgentSetupCard 来处理可用性检查和自动切换
+        // 闈欓粯澶勭悊閿欒锛岃浼氳瘽闈㈡澘鐨?AgentSetupCard 鏉ュ鐞嗗彲鐢ㄦ€ф鏌ュ拰鑷姩鍒囨崲
         // Silently handle errors, let conversation panel's AgentSetupCard handle availability check and auto-switch
         console.error('Failed to create ACP conversation:', error);
         throw error; // Re-throw to prevent input clearing
@@ -1362,16 +1176,15 @@ const Guid: React.FC = () => {
       return;
     }
     const currentKey = selectedModelKeyRef.current || buildModelKey(currentModel?.id, currentModel?.useModel);
-    // 当前选择仍然可用则不重置 / Keep current selection when still available
+    // 褰撳墠閫夋嫨浠嶇劧鍙敤鍒欎笉閲嶇疆 / Keep current selection when still available
     if (isModelKeyAvailable(currentKey, modelList)) {
       if (!selectedModelKeyRef.current && currentKey) {
         selectedModelKeyRef.current = currentKey;
       }
       return;
     }
-    // 读取默认配置，或回落到新的第一个模型
-    // Read default config, or fallback to first model
-    const savedModel = await ConfigStorage.get('gemini.defaultModel');
+    // 璇诲彇榛樿閰嶇疆锛屾垨鍥炶惤鍒版柊鐨勭涓€涓ā鍨?    // Read default config, or fallback to first model
+    const savedModel = (await ConfigStorage.get('guid.defaultModel')) ?? (await ConfigStorage.get('gemini.defaultModel'));
 
     // Handle backward compatibility: old format is string, new format is { id, useModel }
     const isNewFormat = savedModel && typeof savedModel === 'object' && 'id' in savedModel;
@@ -1414,34 +1227,34 @@ const Guid: React.FC = () => {
     });
   }, [modelList]);
 
-  // 打字机效果 / Typewriter effect
+  // 鎵撳瓧鏈烘晥鏋?/ Typewriter effect
   useEffect(() => {
     const fullText = t('conversation.welcome.placeholder');
     let currentIndex = 0;
-    const typingSpeed = 80; // 每个字符的打字速度（毫秒）/ Typing speed per character (ms)
+    const typingSpeed = 80; // 姣忎釜瀛楃鐨勬墦瀛楅€熷害锛堟绉掞級/ Typing speed per character (ms)
     let intervalId: ReturnType<typeof setInterval> | null = null;
 
     const typeNextChar = () => {
       if (currentIndex <= fullText.length) {
-        // 在打字过程中添加光标 / Add cursor during typing
+        // 鍦ㄦ墦瀛楄繃绋嬩腑娣诲姞鍏夋爣 / Add cursor during typing
         setTypewriterPlaceholder(fullText.slice(0, currentIndex) + (currentIndex < fullText.length ? '|' : ''));
         currentIndex++;
       }
     };
 
-    // 初始延迟，让用户看到页面加载完成 / Initial delay to let user see page loaded
+    // 鍒濆寤惰繜锛岃鐢ㄦ埛鐪嬪埌椤甸潰鍔犺浇瀹屾垚 / Initial delay to let user see page loaded
     const initialDelay = setTimeout(() => {
       intervalId = setInterval(() => {
         typeNextChar();
         if (currentIndex > fullText.length) {
           if (intervalId) clearInterval(intervalId);
-          setIsTyping(false); // 打字完成 / Typing complete
-          setTypewriterPlaceholder(fullText); // 移除光标 / Remove cursor
+          setIsTyping(false); // 鎵撳瓧瀹屾垚 / Typing complete
+          setTypewriterPlaceholder(fullText); // 绉婚櫎鍏夋爣 / Remove cursor
         }
       }, typingSpeed);
     }, 300);
 
-    // 清理函数：同时清理 timeout 和 interval / Cleanup: clear both timeout and interval
+    // 娓呯悊鍑芥暟锛氬悓鏃舵竻鐞?timeout 鍜?interval / Cleanup: clear both timeout and interval
     return () => {
       clearTimeout(initialDelay);
       if (intervalId) clearInterval(intervalId);
@@ -1453,7 +1266,7 @@ const Guid: React.FC = () => {
         <div className={styles.guidLayout}>
           <p className={`text-2xl font-semibold mb-8 text-0 text-center`}>{t('conversation.welcome.title')}</p>
 
-          {/* Agent 选择器 - 在标题下方 */}
+          {/* Agent 閫夋嫨鍣?- 鍦ㄦ爣棰樹笅鏂?*/}
           {availableAgents && availableAgents.length > 0 && (
             <div className='w-full flex justify-center'>
               <div
@@ -1559,7 +1372,7 @@ const Guid: React.FC = () => {
               </div>
             )}
             {files.length > 0 && (
-              // 展示待发送的文件并允许取消 / Show pending files and allow cancellation
+              // 灞曠ず寰呭彂閫佺殑鏂囦欢骞跺厑璁稿彇娑?/ Show pending files and allow cancellation
               <div className='flex flex-wrap items-center gap-8px mt-12px mb-12px'>
                 {files.map((path) => (
                   <FilePreview key={path} path={path} onRemove={() => handleRemoveFile(path)} />
@@ -1580,7 +1393,7 @@ const Guid: React.FC = () => {
                             .invoke({ properties: ['openFile', 'multiSelections'] })
                             .then((uploadedFiles) => {
                               if (uploadedFiles && uploadedFiles.length > 0) {
-                                // 通过对话框上传的文件使用追加模式
+                                // 閫氳繃瀵硅瘽妗嗕笂浼犵殑鏂囦欢浣跨敤杩藉姞妯″紡
                                 // Files uploaded via dialog use append mode
                                 handleFilesUploaded(uploadedFiles);
                               }
@@ -1627,122 +1440,54 @@ const Guid: React.FC = () => {
                   </span>
                 </Dropdown>
 
-                {(selectedAgent === 'gemini' && !isPresetAgent) || (isPresetAgent && currentEffectiveAgentInfo.agentType === 'gemini' && currentEffectiveAgentInfo.isAvailable) ? (
-                  <Dropdown
-                    trigger='hover'
-                    droplist={
-                      <Menu selectedKeys={currentModel ? [currentModel.id + currentModel.useModel] : []}>
-                        {!modelList || modelList.length === 0
-                          ? [
-                              /* 暂无可用模型提示 */
-                              <Menu.Item key='no-models' className='px-12px py-12px text-t-secondary text-14px text-center flex justify-center items-center' disabled>
-                                {t('settings.noAvailableModels')}
-                              </Menu.Item>,
-                              /* Add Model 选项 */
-                              <Menu.Item key='add-model' className='text-12px text-t-secondary' onClick={() => navigate('/settings/model')}>
-                                <Plus theme='outline' size='12' />
-                                {t('settings.addModel')}
-                              </Menu.Item>,
-                            ]
-                          : [
-                              ...(modelList || []).map((provider) => {
-                                const availableModels = getAvailableModels(provider);
-                                // 只渲染有可用模型的 provider
-                                if (availableModels.length === 0) return null;
-                                return (
-                                  <Menu.ItemGroup title={provider.name} key={provider.id}>
-                                    {availableModels.map((modelName) => {
-                                      const isGoogleProvider = provider.platform?.toLowerCase().includes('gemini-with-google-auth');
-                                      const option = isGoogleProvider ? geminiModeLookup.get(modelName) : undefined;
-
-                                      // Manual 模式：显示带子菜单的选项
-                                      // Manual mode: show submenu with specific models
-                                      if (option?.subModels && option.subModels.length > 0) {
-                                        return (
-                                          <Menu.SubMenu
-                                            key={provider.id + modelName}
-                                            title={
-                                              <div className='flex items-center justify-between gap-12px w-full'>
-                                                <span>{option.label}</span>
-                                              </div>
-                                            }
-                                          >
-                                            {option.subModels.map((subModel) => (
-                                              <Menu.Item
-                                                key={provider.id + subModel.value}
-                                                className={currentModel?.id + currentModel?.useModel === provider.id + subModel.value ? '!bg-2' : ''}
-                                                onClick={() => {
-                                                  setCurrentModel({ ...provider, useModel: subModel.value }).catch((error) => {
-                                                    console.error('Failed to set current model:', error);
-                                                  });
-                                                }}
-                                              >
-                                                {subModel.label}
-                                              </Menu.Item>
-                                            ))}
-                                          </Menu.SubMenu>
-                                        );
-                                      }
-
-                                      // 普通模式：显示单个选项
-                                      // Normal mode: show single item
-                                      return (
-                                        <Menu.Item
-                                          key={provider.id + modelName}
-                                          className={currentModel?.id + currentModel?.useModel === provider.id + modelName ? '!bg-2' : ''}
-                                          onClick={() => {
-                                            setCurrentModel({ ...provider, useModel: modelName }).catch((error) => {
-                                              console.error('Failed to set current model:', error);
-                                            });
-                                          }}
-                                        >
-                                          {(() => {
-                                            if (!option) {
-                                              return modelName;
-                                            }
-                                            return (
-                                              <Tooltip
-                                                position='right'
-                                                trigger='hover'
-                                                content={
-                                                  <div className='max-w-240px space-y-6px'>
-                                                    <div className='text-12px text-t-secondary leading-5'>{option.description}</div>
-                                                    {option.modelHint && <div className='text-11px text-t-tertiary'>{option.modelHint}</div>}
-                                                  </div>
-                                                }
-                                              >
-                                                <div className='flex items-center justify-between gap-12px w-full'>
-                                                  <span>{option.label}</span>
-                                                </div>
-                                              </Tooltip>
-                                            );
-                                          })()}
-                                        </Menu.Item>
-                                      );
-                                    })}
-                                  </Menu.ItemGroup>
-                                );
-                              }),
-                              /* Add Model 选项 */
-                              <Menu.Item key='add-model' className='text-12px text-t-secondary' onClick={() => navigate('/settings/model')}>
-                                <Plus theme='outline' size='12' />
-                                {t('settings.addModel')}
-                              </Menu.Item>,
-                            ]}
-                      </Menu>
-                    }
-                  >
-                    <Button className={'sendbox-model-btn'} shape='round'>
-                      {currentModel ? formatGeminiModelLabel(currentModel, currentModel.useModel) : t('conversation.welcome.selectModel')}
-                    </Button>
-                  </Dropdown>
-                ) : (
-                  <Tooltip content={t('conversation.welcome.modelSwitchNotSupported')} position='top'>
-                    <Button className={'sendbox-model-btn'} shape='round' style={{ cursor: 'default' }}>
-                      {t('conversation.welcome.useCliModel')}
-                    </Button>
-                  </Tooltip>
-                )}
+                <Dropdown
+                  trigger='hover'
+                  droplist={
+                    <Menu selectedKeys={currentModel ? [currentModel.id + currentModel.useModel] : []}>
+                      {!modelList || modelList.length === 0
+                        ? [
+                            <Menu.Item key='no-models' className='px-12px py-12px text-t-secondary text-14px text-center flex justify-center items-center' disabled>
+                              {t('settings.noAvailableModels')}
+                            </Menu.Item>,
+                            <Menu.Item key='add-model' className='text-12px text-t-secondary' onClick={() => navigate('/settings/model')}>
+                              <Plus theme='outline' size='12' />
+                              {t('settings.addModel')}
+                            </Menu.Item>,
+                          ]
+                        : [
+                            ...(modelList || []).map((provider) => {
+                              const availableModels = getAvailableModels(provider);
+                              if (availableModels.length === 0) return null;
+                              return (
+                                <Menu.ItemGroup title={provider.name} key={provider.id}>
+                                  {availableModels.map((modelName) => (
+                                    <Menu.Item
+                                      key={provider.id + modelName}
+                                      className={currentModel?.id + currentModel?.useModel === provider.id + modelName ? '!bg-2' : ''}
+                                      onClick={() => {
+                                        setCurrentModel({ ...provider, useModel: modelName }).catch((error) => {
+                                          console.error('Failed to set current model:', error);
+                                        });
+                                      }}
+                                    >
+                                      {modelName}
+                                    </Menu.Item>
+                                  ))}
+                                </Menu.ItemGroup>
+                              );
+                            }),
+                            <Menu.Item key='add-model' className='text-12px text-t-secondary' onClick={() => navigate('/settings/model')}>
+                              <Plus theme='outline' size='12' />
+                              {t('settings.addModel')}
+                            </Menu.Item>,
+                          ]}
+                    </Menu>
+                  }
+                >
+                  <Button className={'sendbox-model-btn'} shape='round'>
+                    {currentModel ? currentModel.useModel : t('conversation.welcome.selectModel')}
+                  </Button>
+                </Dropdown>
 
                 {supportsModeSwitch(selectedAgent) && <AgentModeSelector backend={selectedAgent} compact initialMode={selectedMode} onModeSelect={(mode) => setSelectedMode(mode)} />}
 
@@ -1767,7 +1512,7 @@ const Guid: React.FC = () => {
                       className={styles.presetAgentTagClose}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedAgentKey('gemini'); // Reset to default
+                        setSelectedAgentKey('codex'); // Reset to default
                       }}
                     >
                       <IconClose style={{ fontSize: 12, color: 'var(--color-text-3)' }} />
@@ -1780,12 +1525,7 @@ const Guid: React.FC = () => {
                   shape='circle'
                   type='primary'
                   loading={loading}
-                  disabled={
-                    !input.trim() ||
-                    // For Gemini mode: disable only when logged in but no model selected
-                    // When not logged in, allow click to trigger Google login flow
-                    ((((!selectedAgent || selectedAgent === 'gemini') && !isPresetAgent) || (isPresetAgent && currentEffectiveAgentInfo.agentType === 'gemini' && currentEffectiveAgentInfo.isAvailable)) && !currentModel && isGoogleAuth)
-                  }
+                  disabled={!input.trim() || !currentModel}
                   icon={<ArrowUp theme='outline' size='14' fill='white' strokeWidth={2} />}
                   onClick={() => {
                     handleSend().catch((error) => {
@@ -1818,7 +1558,7 @@ const Guid: React.FC = () => {
               {isPresetAgent && selectedAgentInfo ? (
                 // Selected Assistant View
                 <div className='flex flex-col w-full animate-fade-in'>
-                  {/* Main Agent Fallback Notice / Main Agent 回退提示 */}
+                  {/* Main Agent Fallback Notice / Main Agent 鍥為€€鎻愮ず */}
                   {currentEffectiveAgentInfo.isFallback && (
                     <div
                       className='mb-12px px-12px py-8px rd-8px text-12px flex items-center gap-8px'
@@ -1920,7 +1660,7 @@ const Guid: React.FC = () => {
           )}
         </div>
 
-        {/* 底部快捷按钮 */}
+        {/* 搴曢儴蹇嵎鎸夐挳 */}
         <div className='absolute bottom-32px left-50% -translate-x-1/2 flex flex-col justify-center items-center'>
           {/* <div className='text-text-3 text-14px mt-24px mb-12px'>{t('conversation.welcome.quickActionsTitle')}</div> */}
           <div className='flex justify-center items-center gap-24px'>

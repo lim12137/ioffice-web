@@ -6,49 +6,21 @@
 
 import { getChannelConversationName, isChannelPlatform } from '@/channels/types';
 import type { ICreateConversationParams } from '@/common/ipcBridge';
-import type { ConversationSource, TChatConversation, TProviderWithModel } from '@/common/storage';
+import type { ConversationSource, TChatConversation } from '@/common/storage';
 import { getDatabase } from '@process/database';
-import path from 'path';
-import { createAcpAgent, createCodexAgent, createGeminiAgent, createNanobotAgent, createOpenClawAgent } from '../initAgent';
+import { createAcpAgent, createCodexAgent, createNanobotAgent, createOpenClawAgent } from '../initAgent';
 import WorkerManage from '../WorkerManage';
 
 /**
- * 创建 Gemini 会话的参数
- * Parameters for creating a Gemini conversation
- */
-export interface ICreateGeminiConversationParams {
-  model: TProviderWithModel;
-  workspace?: string;
-  defaultFiles?: string[];
-  webSearchEngine?: 'google' | 'default';
-  customWorkspace?: boolean;
-  contextFileName?: string;
-  presetRules?: string;
-  enabledSkills?: string[];
-  presetAssistantId?: string;
-  /** 会话来源 / Conversation source */
-  source?: ConversationSource;
-  /** 自定义会话 ID / Custom conversation ID */
-  id?: string;
-  /** 自定义会话名称 / Custom conversation name */
-  name?: string;
-  /** Channel chat isolation ID (e.g. user:xxx, group:xxx) */
-  channelChatId?: string;
-}
-
-/**
- * 创建会话的通用参数（基于 IPC 参数扩展）
  * Common parameters for creating conversation (extends IPC params)
  */
 export interface ICreateConversationOptions extends ICreateConversationParams {
-  /** 会话来源 / Conversation source */
   source?: ConversationSource;
-  /** Channel chat isolation ID (e.g. user:xxx, group:xxx) */
   channelChatId?: string;
+  userId?: string;
 }
 
 /**
- * 创建会话的返回结果
  * Result of creating a conversation
  */
 export interface ICreateConversationResult {
@@ -58,92 +30,31 @@ export interface ICreateConversationResult {
 }
 
 /**
- * 通用会话创建服务
  * Common conversation creation service
- *
- * 提供统一的会话创建逻辑，供 AionUI、Telegram 及其他 IM 使用
- * Provides unified conversation creation logic for AionUI, Telegram and other IMs
  */
 export class ConversationService {
   /**
-   * 创建 Gemini 会话
-   * Create a Gemini conversation
+   * Legacy compatibility API.
+   * Gemini support has been removed from the project.
    */
-  static async createGeminiConversation(params: ICreateGeminiConversationParams): Promise<ICreateConversationResult> {
-    try {
-      // Resolve context file path if needed
-      let contextFileName = params.contextFileName;
-      if (contextFileName && !path.isAbsolute(contextFileName)) {
-        contextFileName = path.resolve(process.cwd(), contextFileName);
-      }
-
-      // Create conversation object
-      const conversation = await createGeminiAgent(params.model, params.workspace, params.defaultFiles, params.webSearchEngine, params.customWorkspace, contextFileName, params.presetRules, params.enabledSkills, params.presetAssistantId);
-
-      // Apply custom ID and name if provided
-      if (params.id) {
-        conversation.id = params.id;
-      }
-      if (params.name) {
-        conversation.name = params.name;
-      }
-
-      // Set source and channelChatId
-      if (params.source) {
-        conversation.source = params.source;
-      }
-      if (params.channelChatId) {
-        conversation.channelChatId = params.channelChatId;
-      }
-
-      // Save to database
-      const db = getDatabase();
-      const result = db.createConversation(conversation);
-      if (!result.success) {
-        console.error('[ConversationService] Failed to create conversation in database:', result.error);
-        return { success: false, error: result.error };
-      }
-
-      // Register with WorkerManage after DB save so early emitted messages can be persisted reliably.
-      WorkerManage.buildConversation(conversation);
-
-      console.log(`[ConversationService] Created conversation ${conversation.id} with source=${params.source || 'aionui'}, chatId=${params.channelChatId || 'none'}`);
-      return { success: true, conversation };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error('[ConversationService] Failed to create Gemini conversation:', error);
-      return { success: false, error: errorMessage };
-    }
+  static async createGeminiConversation(): Promise<ICreateConversationResult> {
+    return { success: false, error: 'Gemini conversations are no longer supported' };
   }
 
   /**
-   * 创建会话（通用方法，支持所有类型）
-   * Create conversation (common method, supports all types)
+   * Create conversation (supports non-Gemini types)
    */
   static async createConversation(params: ICreateConversationOptions): Promise<ICreateConversationResult> {
-    const { type, extra, name, model, id, source } = params;
+    const { type, name, id, source } = params;
 
     try {
       let conversation: TChatConversation;
 
       if (type === 'gemini') {
-        const extraWithPresets = extra as typeof extra & {
-          presetRules?: string;
-          enabledSkills?: string[];
-          presetAssistantId?: string;
-        };
+        return { success: false, error: 'Gemini conversations are no longer supported' };
+      }
 
-        let contextFileName = extra.contextFileName;
-        if (contextFileName && !path.isAbsolute(contextFileName)) {
-          contextFileName = path.resolve(process.cwd(), contextFileName);
-        }
-
-        const presetRules = extraWithPresets.presetRules || extraWithPresets.presetContext || extraWithPresets.context;
-        const enabledSkills = extraWithPresets.enabledSkills;
-        const presetAssistantId = extraWithPresets.presetAssistantId;
-
-        conversation = await createGeminiAgent(model, extra.workspace, extra.defaultFiles, extra.webSearchEngine, extra.customWorkspace, contextFileName, presetRules, enabledSkills, presetAssistantId, extra.sessionMode);
-      } else if (type === 'acp') {
+      if (type === 'acp') {
         conversation = await createAcpAgent(params);
       } else if (type === 'codex') {
         conversation = await createCodexAgent(params);
@@ -155,7 +66,6 @@ export class ConversationService {
         return { success: false, error: 'Invalid conversation type' };
       }
 
-      // Apply custom ID, name, source, and channelChatId
       if (name) {
         conversation.name = name;
       }
@@ -169,16 +79,13 @@ export class ConversationService {
         conversation.channelChatId = params.channelChatId;
       }
 
-      // Save to database
       const db = getDatabase();
-      const result = db.createConversation(conversation);
+      const result = db.createConversation(conversation, params.userId);
       if (!result.success) {
         console.error('[ConversationService] Failed to create conversation in database:', result.error);
         return { success: false, error: result.error };
       }
 
-      // Register with WorkerManage after DB save so early emitted messages can be persisted reliably.
-      // Note: Don't call initAgent() here - let it be lazy initialized when sendMessage() is called.
       WorkerManage.buildConversation(conversation);
 
       console.log(`[ConversationService] Created ${type} conversation ${conversation.id} with source=${source || 'aionui'}`);
@@ -199,30 +106,28 @@ export class ConversationService {
   }
 
   /**
-   * 获取或创建指定渠道的会话
    * Get or create a conversation for the specified channel
-   *
-   * 优先复用最后一个对应 source 的会话，没有则创建新会话
-   * Prefers reusing the latest conversation with matching source, creates new if none exists
    */
-  static async getOrCreateChannelConversation(params: ICreateGeminiConversationParams & { source: ConversationSource }): Promise<ICreateConversationResult> {
+  static async getOrCreateChannelConversation(params: ICreateConversationOptions & { source: ConversationSource }): Promise<ICreateConversationResult> {
     const db = getDatabase();
     const source = params.source;
 
-    // Per-chat lookup: find existing conversation by source + channelChatId + type, or create new
+    if (params.type === 'gemini') {
+      return { success: false, error: 'Gemini conversations are no longer supported' };
+    }
+
     if (params.channelChatId) {
-      const latestConv = db.findChannelConversation(source, params.channelChatId, 'gemini');
+      const latestConv = db.findChannelConversation(source, params.channelChatId, params.type, undefined, params.userId);
       if (latestConv.success && latestConv.data) {
         console.log(`[ConversationService] Reusing existing ${source} conversation for chatId=${params.channelChatId}: ${latestConv.data.id}`);
         return { success: true, conversation: latestConv.data };
       }
     }
 
-    // No channelChatId or no existing conversation found — always create new
-    return this.createGeminiConversation({
+    return this.createConversation({
       ...params,
       source,
-      name: params.name || (isChannelPlatform(source) ? getChannelConversationName(source, 'gemini', undefined, params.channelChatId) : `${source} Assistant`),
+      name: params.name || (isChannelPlatform(source) ? getChannelConversationName(source, params.type, params.extra?.backend, params.channelChatId) : `${source} Assistant`),
     });
   }
 }

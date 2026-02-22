@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * Copyright 2025 AionUi (aionui.com)
  * SPDX-License-Identifier: Apache-2.0
@@ -23,7 +23,6 @@ import ClaudeLogo from '@/renderer/assets/logos/claude.svg';
 import CodeBuddyLogo from '@/renderer/assets/logos/codebuddy.svg';
 import CodexLogo from '@/renderer/assets/logos/codex.svg';
 import OpenCodeLogo from '@/renderer/assets/logos/opencode.svg';
-import GeminiLogo from '@/renderer/assets/logos/gemini.svg';
 import QwenLogo from '@/renderer/assets/logos/qwen.svg';
 import IflowLogo from '@/renderer/assets/logos/iflow.svg';
 import DroidLogo from '@/renderer/assets/logos/droid.svg';
@@ -36,7 +35,6 @@ const AGENT_LOGOS: Partial<Record<AcpBackendAll, string>> = {
   codebuddy: CodeBuddyLogo,
   codex: CodexLogo,
   opencode: OpenCodeLogo,
-  gemini: GeminiLogo,
   qwen: QwenLogo,
   iflow: IflowLogo,
   droid: DroidLogo,
@@ -86,19 +84,15 @@ const AgentSetupCard: React.FC<AgentSetupCardProps> = ({ conversationId, current
         }
 
         // Determine conversation type based on agent
-        // Codex uses 'codex' type, Gemini uses 'gemini' type, others use 'acp' type
-        const isGemini = agent.backend === 'gemini';
+        // Codex uses 'codex' type, others use 'acp' type
         const isCodex = agent.backend === 'codex';
-        const conversationType = isGemini ? 'gemini' : isCodex ? 'codex' : 'acp';
-
-        // Get current conversation's model info (if gemini type)
-        const currentModel = conversation.type === 'gemini' ? conversation.model : undefined;
+        const conversationType = isCodex ? 'codex' : 'acp';
 
         // Create new conversation with the selected agent
         const newConversation = await ipcBridge.conversation.create.invoke({
           type: conversationType,
           name: conversation.name || 'New Conversation',
-          model: currentModel || {
+          model: {
             id: 'default',
             name: 'Default',
             useModel: 'default',
@@ -109,19 +103,11 @@ const AgentSetupCard: React.FC<AgentSetupCardProps> = ({ conversationId, current
           extra: {
             workspace: conversation.extra?.workspace || '',
             customWorkspace: conversation.extra?.customWorkspace || false,
-            ...(isGemini
-              ? {
-                  presetRules: ((conversation.extra as Record<string, unknown>)?.presetRules || (conversation.extra as Record<string, unknown>)?.presetContext) as string,
-                  enabledSkills: conversation.extra?.enabledSkills,
-                  presetAssistantId: conversation.extra?.presetAssistantId,
-                }
-              : {
-                  backend: agent.backend,
-                  cliPath: agent.cliPath,
-                  presetContext: ((conversation.extra as Record<string, unknown>)?.presetRules || (conversation.extra as Record<string, unknown>)?.presetContext) as string,
-                  enabledSkills: conversation.extra?.enabledSkills,
-                  presetAssistantId: conversation.extra?.presetAssistantId,
-                }),
+            backend: agent.backend,
+            cliPath: agent.cliPath,
+            presetContext: ((conversation.extra as Record<string, unknown>)?.presetRules || (conversation.extra as Record<string, unknown>)?.presetContext) as string,
+            enabledSkills: conversation.extra?.enabledSkills,
+            presetAssistantId: conversation.extra?.presetAssistantId,
           },
         });
 
@@ -133,12 +119,9 @@ const AgentSetupCard: React.FC<AgentSetupCardProps> = ({ conversationId, current
         }
 
         // Store initial message for the new conversation to send automatically
-        // 存储初始消息，让新会话自动发送
         if (initialMessage) {
           const messageData = { input: initialMessage, files: [] as string[] };
-          if (isGemini) {
-            sessionStorage.setItem(`gemini_initial_message_${newConversation.id}`, JSON.stringify(messageData));
-          } else if (isCodex) {
+          if (isCodex) {
             sessionStorage.setItem(`codex_initial_message_${newConversation.id}`, JSON.stringify(messageData));
           } else {
             sessionStorage.setItem(`acp_initial_message_${newConversation.id}`, JSON.stringify(messageData));
@@ -186,14 +169,14 @@ const AgentSetupCard: React.FC<AgentSetupCardProps> = ({ conversationId, current
     switchingRef.current = false;
   }, [conversationId]);
 
-  // 是否有可用的 agent 且正在切换 / Has available agent and is switching
+  // 鏄惁鏈夊彲鐢ㄧ殑 agent 涓旀鍦ㄥ垏鎹?/ Has available agent and is switching
   const hasAvailableAndSwitching = !isChecking && availableCount > 0 && (switching || (autoSwitch && bestAgent));
 
   return (
     <div className='mb-12px'>
-      {/* Main Card - 主卡片 */}
+      {/* Main Card - 涓诲崱鐗?*/}
       <div className='relative rounded-12px p-16px bg-bg-2 border-1 border-solid border-border-2'>
-        {/* Collapsed View - 收起状态：一行提示 + 展开按钮 */}
+        {/* Collapsed View - 鏀惰捣鐘舵€侊細涓€琛屾彁绀?+ 灞曞紑鎸夐挳 */}
         {!expanded && !hasAvailableAndSwitching && (
           <div className='flex items-center justify-between cursor-pointer' onClick={() => setExpanded(true)}>
             <div className='flex items-center gap-8px'>
@@ -204,10 +187,10 @@ const AgentSetupCard: React.FC<AgentSetupCardProps> = ({ conversationId, current
           </div>
         )}
 
-        {/* Expanded View - 展开状态 */}
+        {/* Expanded View - 灞曞紑鐘舵€?*/}
         {(expanded || hasAvailableAndSwitching) && (
           <>
-            {/* Header with collapse button - 带收起按钮的头部 */}
+            {/* Header with collapse button - 甯︽敹璧锋寜閽殑澶撮儴 */}
             {!hasAvailableAndSwitching && (
               <div className='flex items-center justify-between mb-12px'>
                 <div className='flex items-center gap-8px'>
@@ -229,7 +212,7 @@ const AgentSetupCard: React.FC<AgentSetupCardProps> = ({ conversationId, current
               </div>
             )}
 
-            {/* Success Message - 连接成功提示 */}
+            {/* Success Message - 杩炴帴鎴愬姛鎻愮ず */}
             {hasAvailableAndSwitching && (
               <div className='flex items-center gap-8px mb-12px'>
                 <CheckOne theme='filled' size={16} className='text-success-6' />
@@ -237,7 +220,7 @@ const AgentSetupCard: React.FC<AgentSetupCardProps> = ({ conversationId, current
               </div>
             )}
 
-            {/* Agent Cards - Agent 卡片列表 */}
+            {/* Agent Cards - Agent 鍗＄墖鍒楄〃 */}
             {availableAgents.length > 0 && (
               <div className='overflow-x-auto pb-4px -mx-4px px-4px'>
                 <div className='flex gap-10px' style={{ width: 'max-content' }}>
@@ -311,7 +294,7 @@ const AgentSetupCard: React.FC<AgentSetupCardProps> = ({ conversationId, current
               </div>
             )}
 
-            {/* Connection Progress - 连接进度条 */}
+            {/* Connection Progress - 杩炴帴杩涘害鏉?*/}
             {hasAvailableAndSwitching && bestAgent && (
               <div className='mt-12px'>
                 <Progress percent={switching ? 50 : 100} size='small' status='success' showText={false} />
@@ -322,7 +305,7 @@ const AgentSetupCard: React.FC<AgentSetupCardProps> = ({ conversationId, current
             {/* No alternatives found */}
             {!isChecking && availableCount === 0 && availableAgents.length > 0 && (
               <div className='text-center py-12px'>
-                <div className='text-24px mb-4px'>😔</div>
+                <div className='text-24px mb-4px'>馃様</div>
                 <div className='text-13px font-medium mb-4px text-t-primary'>{t('agent.setup.noAlternatives', { defaultValue: 'No available agents found' })}</div>
                 <div className='text-12px text-t-secondary'>{t('agent.setup.configureFirst', { defaultValue: 'Please configure an agent in Settings first.' })}</div>
                 <Button type='outline' size='small' className='mt-8px' onClick={() => navigate('/settings')}>
