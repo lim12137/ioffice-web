@@ -11,7 +11,8 @@ import { execSync } from 'child_process';
 import { networkInterfaces } from 'os';
 import { AuthService } from '@/webserver/auth/service/AuthService';
 import { UserRepository } from '@/webserver/auth/repository/UserRepository';
-import { AUTH_CONFIG, SERVER_CONFIG } from './config/constants';
+import { SERVER_CONFIG } from './config/constants';
+import { resolveBootstrapAdminCredentials } from './config/bootstrapCredentials';
 import { initWebAdapter } from './adapter';
 import { setupBasicMiddleware, setupCors, setupErrorHandler } from './setup';
 import { registerAuthRoutes } from './routes/authRoutes';
@@ -21,8 +22,6 @@ import { generateQRLoginUrlDirect } from '@/process/bridge/webuiBridge';
 
 // Express Request 类型扩展定义在 src/webserver/types/express.d.ts
 // Express Request type extension is defined in src/webserver/types/express.d.ts
-
-const DEFAULT_ADMIN_USERNAME = AUTH_CONFIG.DEFAULT_USER.USERNAME;
 
 // 存储初始密码（内存中，用于首次显示）/ Store initial password (in memory, for first-time display)
 let initialAdminPassword: string | null = null;
@@ -136,7 +135,9 @@ function getServerIP(): string | null {
  * @returns 初始凭证（仅首次创建时）/ Initial credentials (only on first creation)
  */
 async function initializeDefaultAdmin(): Promise<{ username: string; password: string } | null> {
-  const username = DEFAULT_ADMIN_USERNAME;
+  const credentials = resolveBootstrapAdminCredentials();
+  const username = credentials.username;
+  const password = credentials.password;
 
   const systemUser = UserRepository.getSystemUser();
   const existingAdmin = UserRepository.findByUsername(username);
@@ -150,8 +151,6 @@ async function initializeDefaultAdmin(): Promise<{ username: string; password: s
   if (hasValidPassword(existingAdmin)) {
     return null;
   }
-
-  const password = AuthService.generateRandomPassword();
 
   try {
     const hashedPassword = await AuthService.hashPassword(password);
