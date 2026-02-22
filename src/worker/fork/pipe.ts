@@ -18,6 +18,23 @@ const uuid = (len = 4) => {
 
 const callbackKey = (key: string) => key + '.callback';
 
+type ParentPortMessagePayload = {
+  type?: string;
+  data?: unknown;
+  pipeId?: string;
+};
+
+type ParentPortMessageEvent = {
+  data?: ParentPortMessagePayload;
+};
+
+type ParentPortShim = {
+  on: (event: 'message', listener: (event: ParentPortMessageEvent) => void) => void;
+  postMessage?: (payload: unknown) => void;
+};
+
+const getParentPort = (): ParentPortShim | undefined => (process as unknown as { parentPort?: ParentPortShim }).parentPort;
+
 class Deferred {
   resolve: (data: any) => void;
   reject: (data: any) => void;
@@ -67,8 +84,9 @@ export class Pipe {
   constructor(master = false) {
     if (!master) {
       // 接受主进程消息
-      if (process.parentPort) {
-        process.parentPort.on('message', (event) => {
+      const parentPort = getParentPort();
+      if (parentPort) {
+        parentPort.on('message', (event: ParentPortMessageEvent) => {
           const { type, data, pipeId } = event.data || {};
           // console.log("--------------->from main message", event.data);
           if (type) {
@@ -125,11 +143,12 @@ export class Pipe {
       console.log('---主进程已关闭', name, '执行失败！!');
       return;
     }
-    if (!process.parentPort?.postMessage) {
+    const parentPort = getParentPort();
+    if (!parentPort?.postMessage) {
       console.error('---非子线程，无法使用主线程事件机制');
       return;
     }
-    process.parentPort.postMessage({
+    parentPort.postMessage({
       type: name,
       data: data,
       ...extPrams,
