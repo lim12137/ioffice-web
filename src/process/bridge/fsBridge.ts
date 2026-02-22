@@ -10,7 +10,7 @@ import path from 'path';
 import os from 'os';
 import https from 'node:https';
 import http from 'node:http';
-import { app } from 'electron';
+import { app } from '@/platform/electron';
 import { ipcBridge } from '../../common';
 import { getSystemDir, getAssistantsDir } from '../initStorage';
 import { readDirectoryRecursive } from '../utils';
@@ -331,6 +331,34 @@ export function initFsBridge(): void {
     }
   });
 
+  // 创建临时文件夹 / Create temporary directory on disk
+  ipcBridge.fs.createTempDirectory.provider(async ({ directoryName }) => {
+    try {
+      const { cacheDir } = getSystemDir();
+      const tempDir = path.join(cacheDir, 'temp');
+
+      await fs.mkdir(tempDir, { recursive: true });
+
+      const baseName = (directoryName || 'upload').replace(/[<>:"/\\|?*]/g, '_').trim() || 'upload';
+      let tempDirectoryPath = path.join(tempDir, `${baseName}${AIONUI_TIMESTAMP_SEPARATOR}${Date.now()}`);
+
+      const directoryExists = await fs
+        .access(tempDirectoryPath)
+        .then(() => true)
+        .catch(() => false);
+
+      if (directoryExists) {
+        tempDirectoryPath = path.join(tempDir, `${baseName}${AIONUI_TIMESTAMP_SEPARATOR}${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+      }
+
+      await fs.mkdir(tempDirectoryPath, { recursive: true });
+      return tempDirectoryPath;
+    } catch (error) {
+      console.error('Failed to create temp directory:', error);
+      throw error;
+    }
+  });
+
   // 读取文件内容（UTF-8编码）/ Read file content (UTF-8 encoding)
   ipcBridge.fs.readFile.provider(async ({ path: filePath }) => {
     try {
@@ -358,6 +386,8 @@ export function initFsBridge(): void {
   // 写入文件
   ipcBridge.fs.writeFile.provider(async ({ path: filePath, data }) => {
     try {
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+
       // 处理字符串类型 / Handle string type
       if (typeof data === 'string') {
         await fs.writeFile(filePath, data, 'utf-8');
@@ -918,8 +948,8 @@ export function initFsBridge(): void {
     try {
       const homedir = os.homedir();
       const candidates = [
-        { name: 'Gemini', path: path.join(homedir, '.gemini', 'skills') },
         { name: 'Claude', path: path.join(homedir, '.claude', 'skills') },
+        { name: 'Codex', path: path.join(homedir, '.codex', 'skills') },
       ];
 
       const detected: Array<{ name: string; path: string }> = [];

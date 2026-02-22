@@ -8,19 +8,7 @@ import { Button, Modal, Spin } from '@arco-design/web-react';
 import { IconFile, IconFolder, IconUp } from '@arco-design/web-react/icon';
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-
-interface DirectoryItem {
-  name: string;
-  path: string;
-  isDirectory: boolean;
-  isFile?: boolean;
-}
-
-interface DirectoryData {
-  items: DirectoryItem[];
-  canGoUp: boolean;
-  parentPath?: string;
-}
+import { EMPTY_DIRECTORY_DATA, type DirectoryData, type DirectoryItem, normalizeDirectoryData } from './directorySelectionData';
 
 interface DirectorySelectionModalProps {
   visible: boolean;
@@ -32,7 +20,7 @@ interface DirectorySelectionModalProps {
 const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({ visible, isFileMode = false, onConfirm, onCancel }) => {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
-  const [directoryData, setDirectoryData] = useState<DirectoryData>({ items: [], canGoUp: false });
+  const [directoryData, setDirectoryData] = useState<DirectoryData>(EMPTY_DIRECTORY_DATA);
   const [selectedPath, setSelectedPath] = useState<string>('');
   const [currentPath, setCurrentPath] = useState<string>('');
 
@@ -45,11 +33,21 @@ const DirectorySelectionModal: React.FC<DirectorySelectionModalProps> = ({ visib
           method: 'GET',
           credentials: 'include',
         });
-        const data = await response.json();
-        setDirectoryData(data);
-        setCurrentPath(path);
+        const data: unknown = await response.json();
+        const dataRecord = data && typeof data === 'object' ? (data as Record<string, unknown>) : null;
+        const normalizedData = normalizeDirectoryData(data);
+
+        setDirectoryData(normalizedData);
+        setCurrentPath(typeof dataRecord?.currentPath === 'string' ? dataRecord.currentPath : path);
+
+        if (!response.ok) {
+          const errorMessage = typeof dataRecord?.error === 'string' ? dataRecord.error : `HTTP ${response.status}`;
+          console.error('Directory browse request failed:', errorMessage);
+        }
       } catch (error) {
         console.error('Failed to load directory:', error);
+        setDirectoryData(EMPTY_DIRECTORY_DATA);
+        setCurrentPath(path);
       } finally {
         setLoading(false);
       }
