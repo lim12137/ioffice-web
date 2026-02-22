@@ -133,6 +133,14 @@ export class AionUIDatabase {
   }
 
   /**
+   * Get native better-sqlite3 database instance.
+   * Used by low-level stores that need optimized SQL operations.
+   */
+  getNativeDb(): Database.Database {
+    return this.db;
+  }
+
+  /**
    * ==================
    * User operations
    * 用户操作
@@ -435,7 +443,7 @@ export class AionUIDatabase {
    * For ACP conversations, `backend` distinguishes between claude, iflow, codebuddy, etc.
    * (stored in `extra.backend` JSON field).
    */
-  findChannelConversation(source: 'aionui' | 'telegram' | 'lark' | 'dingtalk', channelChatId: string, type: string, backend?: string, userId?: string): IQueryResult<TChatConversation | null> {
+  findChannelConversation(source: string, channelChatId: string, type: string, backend?: string, userId?: string): IQueryResult<TChatConversation | null> {
     try {
       const finalUserId = userId || this.defaultUserId;
 
@@ -481,7 +489,7 @@ export class AionUIDatabase {
    * Batch-update the model field on channel conversations matching source + type.
    * Used when channel settings change to propagate new model to existing conversations.
    */
-  updateChannelConversationModel(source: 'telegram' | 'lark' | 'dingtalk', type: string, model: TProviderWithModel, userId?: string): IQueryResult<number> {
+  updateChannelConversationModel(source: string, type: string, model: TProviderWithModel, userId?: string): IQueryResult<number> {
     try {
       const finalUserId = userId || this.defaultUserId;
       const modelJson = JSON.stringify(model);

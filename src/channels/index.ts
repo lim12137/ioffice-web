@@ -25,8 +25,6 @@ export { PluginManager, registerPlugin } from './gateway/PluginManager';
 // Plugin exports
 export { BasePlugin } from './plugins/BasePlugin';
 export type { PluginMessageHandler } from './plugins/BasePlugin';
-export { TelegramPlugin } from './plugins/telegram/TelegramPlugin';
-export { DingTalkPlugin } from './plugins/dingtalk/DingTalkPlugin';
 
 // Pairing exports
 export { getPairingService, PairingService } from './pairing/PairingService';
@@ -36,3 +34,6 @@ export * from './actions';
 
 // Agent exports
 export { ChannelMessageService, getChannelMessageService } from './agent/ChannelMessageService';
+
+// Isolation exports
+export { isolationStore, AccessGateService, getAccessGateService } from './isolation';

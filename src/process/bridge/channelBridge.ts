@@ -8,8 +8,9 @@ import { channel } from '@/common/ipcBridge';
 import { getDatabase } from '@/process/database';
 import { getChannelManager } from '@/channels/core/ChannelManager';
 import { getPairingService } from '@/channels/pairing/PairingService';
-import type { IChannelPluginStatus, IChannelUser, IChannelPairingRequest, IChannelSession } from '@/channels/types';
-import { hasPluginCredentials, rowToChannelUser, rowToChannelSession, rowToPairingRequest } from '@/channels/types';
+import { getAccessGateService } from '@/channels/isolation';
+import type { IChannelAccessIdentity, IChannelPluginStatus } from '@/channels/types';
+import { hasPluginCredentials } from '@/channels/types';
 
 /**
  * Initialize Channel IPC Bridge
@@ -17,6 +18,7 @@ import { hasPluginCredentials, rowToChannelUser, rowToChannelSession, rowToPairi
  */
 export function initChannelBridge(): void {
   console.log('[ChannelBridge] Initializing...');
+  const accessGateService = getAccessGateService();
 
   // ==================== Plugin Management ====================
 
@@ -211,23 +213,44 @@ export function initChannelBridge(): void {
     }
   });
 
-  // ==================== Session Management ====================
+  // ==================== Access Gate ====================
 
-  /**
-   * Get active sessions
-   */
-  channel.getActiveSessions.provider(async () => {
+  channel.gateJoin.provider(async ({ identity }) => {
     try {
-      const db = getDatabase();
-      const result = db.getChannelSessions();
-
-      if (!result.success || !result.data) {
-        return { success: false, msg: result.error };
-      }
-
-      return { success: true, data: result.data };
+      const data = accessGateService.join(identity);
+      return { success: true, data };
     } catch (error: any) {
-      console.error('[ChannelBridge] getActiveSessions error:', error);
+      console.error('[ChannelBridge] gateJoin error:', error);
+      return { success: false, msg: error.message };
+    }
+  });
+
+  channel.gateHeartbeat.provider(async ({ identity, leaseId }) => {
+    try {
+      const data = accessGateService.heartbeat(identity, leaseId);
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('[ChannelBridge] gateHeartbeat error:', error);
+      return { success: false, msg: error.message };
+    }
+  });
+
+  channel.gateLeave.provider(async ({ identity, leaseId, reason }) => {
+    try {
+      const data = accessGateService.leave(identity, leaseId, reason);
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('[ChannelBridge] gateLeave error:', error);
+      return { success: false, msg: error.message };
+    }
+  });
+
+  channel.gateStatus.provider(async (params: { identity?: IChannelAccessIdentity }) => {
+    try {
+      const data = accessGateService.status(params?.identity);
+      return { success: true, data };
+    } catch (error: any) {
+      console.error('[ChannelBridge] gateStatus error:', error);
       return { success: false, msg: error.message };
     }
   });

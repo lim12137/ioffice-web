@@ -8,13 +8,10 @@ import { getDatabase } from '@/process/database';
 import { getChannelMessageService } from '../agent/ChannelMessageService';
 import { getChannelDefaultModel } from '../actions/SystemActions';
 import { ActionExecutor } from '../gateway/ActionExecutor';
-import { PluginManager, registerPlugin } from '../gateway/PluginManager';
+import { PluginManager } from '../gateway/PluginManager';
 import { PairingService } from '../pairing/PairingService';
-import { DingTalkPlugin } from '../plugins/dingtalk/DingTalkPlugin';
-import { LarkPlugin } from '../plugins/lark/LarkPlugin';
-import { TelegramPlugin } from '../plugins/telegram/TelegramPlugin';
 import { resolveChannelConvType } from '../types';
-import type { IChannelPluginConfig, PluginType } from '../types';
+import type { IChannelPluginConfig } from '../types';
 import { SessionManager } from './SessionManager';
 
 /**
@@ -45,10 +42,7 @@ export class ChannelManager {
 
   private constructor() {
     // Private constructor for singleton pattern
-    // Register available plugins
-    registerPlugin('telegram', TelegramPlugin);
-    registerPlugin('lark', LarkPlugin);
-    registerPlugin('dingtalk', DingTalkPlugin);
+    // No plugins registered - third-party channel plugins removed
   }
 
   /**
@@ -201,67 +195,14 @@ export class ChannelManager {
   /**
    * Enable and start a plugin
    */
-  async enablePlugin(pluginId: string, config: Record<string, unknown>): Promise<{ success: boolean; error?: string }> {
+  async enablePlugin(_pluginId: string, _config: Record<string, unknown>): Promise<{ success: boolean; error?: string }> {
     // Ensure manager is initialized
     if (!this.initialized || !this.pluginManager) {
       console.error('[ChannelManager] Cannot enable plugin: manager not initialized');
       return { success: false, error: 'Assistant manager not initialized' };
     }
 
-    const db = getDatabase();
-
-    // Get existing plugin or create new one
-    const existingResult = db.getChannelPlugin(pluginId);
-    const existing = existingResult.data;
-
-    // Extract credentials from config based on plugin type
-    const pluginType = (existing?.type || this.getPluginTypeFromId(pluginId)) as PluginType;
-    let credentials = existing?.credentials;
-
-    if (pluginType === 'telegram') {
-      const token = config.token as string | undefined;
-      if (token) {
-        credentials = { token };
-      }
-    } else if (pluginType === 'lark') {
-      const appId = config.appId as string | undefined;
-      const appSecret = config.appSecret as string | undefined;
-      const encryptKey = config.encryptKey as string | undefined;
-      const verificationToken = config.verificationToken as string | undefined;
-      if (appId && appSecret) {
-        credentials = { appId, appSecret, encryptKey, verificationToken };
-      }
-    } else if (pluginType === 'dingtalk') {
-      const clientId = config.clientId as string | undefined;
-      const clientSecret = config.clientSecret as string | undefined;
-      if (clientId && clientSecret) {
-        credentials = { clientId, clientSecret };
-      }
-    }
-
-    const pluginConfig: IChannelPluginConfig = {
-      id: pluginId,
-      type: pluginType,
-      name: existing?.name || this.getPluginNameFromId(pluginId),
-      enabled: true,
-      credentials,
-      config: { ...existing?.config },
-      status: 'created',
-      createdAt: existing?.createdAt || Date.now(),
-      updatedAt: Date.now(),
-    };
-
-    const saveResult = db.upsertChannelPlugin(pluginConfig);
-    if (!saveResult.success) {
-      return { success: false, error: saveResult.error };
-    }
-
-    try {
-      await this.startPlugin(pluginConfig);
-      return { success: true };
-    } catch (error: any) {
-      return { success: false, error: error.message };
-    }
+    return { success: false, error: 'No plugins available - third-party channel plugins removed' };
   }
 
   /**
@@ -295,67 +236,8 @@ export class ChannelManager {
   /**
    * Test a plugin connection without enabling it
    */
-  async testPlugin(pluginId: string, token: string, extraConfig?: { appId?: string; appSecret?: string }): Promise<{ success: boolean; botUsername?: string; error?: string }> {
-    const pluginType = this.getPluginTypeFromId(pluginId);
-
-    if (pluginType === 'telegram') {
-      const result = await TelegramPlugin.testConnection(token);
-      return {
-        success: result.success,
-        botUsername: result.botInfo?.username,
-        error: result.error,
-      };
-    }
-
-    if (pluginType === 'lark') {
-      const appId = extraConfig?.appId;
-      const appSecret = extraConfig?.appSecret;
-      if (!appId || !appSecret) {
-        return { success: false, error: 'App ID and App Secret are required for Lark' };
-      }
-      const result = await LarkPlugin.testConnection(appId, appSecret);
-      return {
-        success: result.success,
-        botUsername: result.botInfo?.name,
-        error: result.error,
-      };
-    }
-
-    if (pluginType === 'dingtalk') {
-      const clientId = extraConfig?.appId; // Reuse appId field for clientId
-      const clientSecret = extraConfig?.appSecret; // Reuse appSecret field for clientSecret
-      if (!clientId || !clientSecret) {
-        return { success: false, error: 'Client ID and Client Secret are required for DingTalk' };
-      }
-      const result = await DingTalkPlugin.testConnection(clientId, clientSecret);
-      return {
-        success: result.success,
-        botUsername: result.botInfo?.name,
-        error: result.error,
-      };
-    }
-
-    return { success: false, error: `Unknown plugin type: ${pluginType}` };
-  }
-
-  /**
-   * Get plugin type from plugin ID
-   */
-  private getPluginTypeFromId(pluginId: string): PluginType {
-    if (pluginId.startsWith('telegram')) return 'telegram';
-    if (pluginId.startsWith('slack')) return 'slack';
-    if (pluginId.startsWith('discord')) return 'discord';
-    if (pluginId.startsWith('lark')) return 'lark';
-    if (pluginId.startsWith('dingtalk')) return 'dingtalk';
-    return 'telegram'; // Default
-  }
-
-  /**
-   * Get plugin name from plugin ID
-   */
-  private getPluginNameFromId(pluginId: string): string {
-    const type = this.getPluginTypeFromId(pluginId);
-    return type.charAt(0).toUpperCase() + type.slice(1) + ' Bot';
+  async testPlugin(_pluginId: string, _token: string, _extraConfig?: { appId?: string; appSecret?: string }): Promise<{ success: boolean; botUsername?: string; error?: string }> {
+    return { success: false, error: 'No plugins available - third-party channel plugins removed' };
   }
 
   // ==================== Settings Sync ====================
@@ -366,7 +248,7 @@ export class ChannelManager {
    * which conversation to use. For gemini type changes, also updates the
    * model field on existing conversations.
    */
-  async syncChannelSettings(platform: 'telegram' | 'lark' | 'dingtalk', agent: { backend: string; customAgentId?: string; name?: string }, model?: { id: string; useModel: string }): Promise<{ success: boolean; error?: string }> {
+  async syncChannelSettings(platform: string, agent: { backend: string; customAgentId?: string; name?: string }, model?: { id: string; useModel: string }): Promise<{ success: boolean; error?: string }> {
     if (!this.initialized || !this.sessionManager) {
       return { success: false, error: 'Channel manager not initialized' };
     }

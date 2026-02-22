@@ -826,13 +826,149 @@ const migration_v14: IMigration = {
 };
 
 /**
+ * Migration v14 -> v15: Add global isolation, wait queue, offline jobs, and quota tables
+ */
+const migration_v15: IMigration = {
+  version: 15,
+  name: 'Add channel isolation tables (limit, queue, offline jobs, quota)',
+  up: (db) => {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS assistant_isolation_config (
+        id TEXT PRIMARY KEY CHECK(id = 'default'),
+        max_active_users INTEGER NOT NULL DEFAULT 5,
+        heartbeat_timeout_ms INTEGER NOT NULL DEFAULT 120000,
+        queue_timeout_ms INTEGER NOT NULL DEFAULT 600000,
+        max_queue_size INTEGER NOT NULL DEFAULT 1000,
+        max_offline_jobs_per_user INTEGER NOT NULL DEFAULT 20,
+        default_user_quota_bytes INTEGER NOT NULL DEFAULT 2147483648,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS assistant_active_leases (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        platform_type TEXT NOT NULL CHECK(platform_type IN ('telegram', 'slack', 'discord', 'lark', 'dingtalk')),
+        platform_user_id TEXT NOT NULL,
+        chat_id TEXT NOT NULL,
+        acquired_at INTEGER NOT NULL,
+        last_heartbeat_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL,
+        status TEXT NOT NULL CHECK(status IN ('active', 'released', 'expired')),
+        release_reason TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES assistant_users(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_assistant_active_leases_status_expires ON assistant_active_leases(status, expires_at);
+      CREATE INDEX IF NOT EXISTS idx_assistant_active_leases_user_status ON assistant_active_leases(user_id, status);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_assistant_active_leases_unique_active ON assistant_active_leases(user_id, chat_id) WHERE status = 'active';
+
+      CREATE TABLE IF NOT EXISTS assistant_wait_queue (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        platform_type TEXT NOT NULL CHECK(platform_type IN ('telegram', 'slack', 'discord', 'lark', 'dingtalk')),
+        platform_user_id TEXT NOT NULL,
+        chat_id TEXT NOT NULL,
+        enqueued_at INTEGER NOT NULL,
+        last_notified_at INTEGER,
+        status TEXT NOT NULL CHECK(status IN ('waiting', 'admitted', 'cancelled', 'timed_out')),
+        admitted_at INTEGER,
+        expires_at INTEGER,
+        note TEXT,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES assistant_users(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_assistant_wait_queue_status_enqueued ON assistant_wait_queue(status, enqueued_at);
+      CREATE INDEX IF NOT EXISTS idx_assistant_wait_queue_user_status ON assistant_wait_queue(user_id, status);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_assistant_wait_queue_unique_waiting ON assistant_wait_queue(user_id, chat_id) WHERE status = 'waiting';
+
+      CREATE TABLE IF NOT EXISTS assistant_offline_jobs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        conversation_id TEXT,
+        chat_id TEXT NOT NULL,
+        payload_type TEXT NOT NULL CHECK(payload_type IN ('message')),
+        payload_text TEXT NOT NULL,
+        priority INTEGER NOT NULL DEFAULT 100,
+        status TEXT NOT NULL CHECK(status IN ('queued', 'running', 'retry_wait', 'completed', 'failed', 'cancelled')),
+        attempt_count INTEGER NOT NULL DEFAULT 0,
+        max_attempts INTEGER NOT NULL DEFAULT 3,
+        next_attempt_at INTEGER,
+        last_error TEXT,
+        started_at INTEGER,
+        completed_at INTEGER,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES assistant_users(id) ON DELETE CASCADE,
+        FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_assistant_offline_jobs_status_retry ON assistant_offline_jobs(status, next_attempt_at);
+      CREATE INDEX IF NOT EXISTS idx_assistant_offline_jobs_user_status ON assistant_offline_jobs(user_id, status);
+      CREATE INDEX IF NOT EXISTS idx_assistant_offline_jobs_conv ON assistant_offline_jobs(conversation_id);
+
+      CREATE TABLE IF NOT EXISTS assistant_user_storage (
+        user_id TEXT PRIMARY KEY,
+        quota_bytes INTEGER NOT NULL,
+        used_bytes INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES assistant_users(id) ON DELETE CASCADE
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_assistant_user_storage_quota ON assistant_user_storage(quota_bytes, used_bytes);
+    `);
+
+    const now = Date.now();
+    db.prepare(
+      `
+      INSERT OR IGNORE INTO assistant_isolation_config (
+        id, max_active_users, heartbeat_timeout_ms, queue_timeout_ms, max_queue_size,
+        max_offline_jobs_per_user, default_user_quota_bytes, created_at, updated_at
+      ) VALUES ('default', 5, 120000, 600000, 1000, 20, 2147483648, ?, ?)
+    `
+    ).run(now, now);
+
+    console.log('[Migration v15] Added channel isolation tables and default config');
+  },
+  down: (db) => {
+    db.exec(`
+      DROP INDEX IF EXISTS idx_assistant_user_storage_quota;
+      DROP TABLE IF EXISTS assistant_user_storage;
+
+      DROP INDEX IF EXISTS idx_assistant_offline_jobs_conv;
+      DROP INDEX IF EXISTS idx_assistant_offline_jobs_user_status;
+      DROP INDEX IF EXISTS idx_assistant_offline_jobs_status_retry;
+      DROP TABLE IF EXISTS assistant_offline_jobs;
+
+      DROP INDEX IF EXISTS idx_assistant_wait_queue_unique_waiting;
+      DROP INDEX IF EXISTS idx_assistant_wait_queue_user_status;
+      DROP INDEX IF EXISTS idx_assistant_wait_queue_status_enqueued;
+      DROP TABLE IF EXISTS assistant_wait_queue;
+
+      DROP INDEX IF EXISTS idx_assistant_active_leases_unique_active;
+      DROP INDEX IF EXISTS idx_assistant_active_leases_user_status;
+      DROP INDEX IF EXISTS idx_assistant_active_leases_status_expires;
+      DROP TABLE IF EXISTS assistant_active_leases;
+
+      DROP TABLE IF EXISTS assistant_isolation_config;
+    `);
+
+    console.log('[Migration v15] Rolled back: Removed channel isolation tables');
+  },
+};
+/**
  * All migrations in order
  */
 // prettier-ignore
 export const ALL_MIGRATIONS: IMigration[] = [
   migration_v1, migration_v2, migration_v3, migration_v4, migration_v5, migration_v6,
   migration_v7, migration_v8, migration_v9, migration_v10, migration_v11, migration_v12,
-  migration_v13, migration_v14,
+  migration_v13, migration_v14, migration_v15,
 ];
 
 /**

@@ -473,7 +473,7 @@ interface IBridgeResponse<D = {}> {
 
 // ==================== Channel API ====================
 
-import type { IChannelPairingRequest, IChannelPluginStatus, IChannelSession, IChannelUser } from '@/channels/types';
+import type { IChannelAccessIdentity, IChannelGateHeartbeatResult, IChannelGateJoinResult, IChannelGateLeaveResult, IChannelGateStatus, IChannelPairingRequest, IChannelPluginStatus, IChannelUser } from '@/channels/types';
 
 export const channel = {
   // Plugin Management
@@ -491,11 +491,13 @@ export const channel = {
   getAuthorizedUsers: bridge.buildProvider<IBridgeResponse<IChannelUser[]>, void>('channel.get-authorized-users'),
   revokeUser: bridge.buildProvider<IBridgeResponse, { userId: string }>('channel.revoke-user'),
 
-  // Session Management (MVP: read-only view)
-  getActiveSessions: bridge.buildProvider<IBridgeResponse<IChannelSession[]>, void>('channel.get-active-sessions'),
-
+  // Access Gate (global active-user limit)
+  gateJoin: bridge.buildProvider<IBridgeResponse<IChannelGateJoinResult>, { identity: IChannelAccessIdentity }>('channel.gate-join'),
+  gateHeartbeat: bridge.buildProvider<IBridgeResponse<IChannelGateHeartbeatResult>, { identity: IChannelAccessIdentity; leaseId?: string }>('channel.gate-heartbeat'),
+  gateLeave: bridge.buildProvider<IBridgeResponse<IChannelGateLeaveResult>, { identity: IChannelAccessIdentity; leaseId?: string; reason?: string }>('channel.gate-leave'),
+  gateStatus: bridge.buildProvider<IBridgeResponse<IChannelGateStatus>, { identity?: IChannelAccessIdentity }>('channel.gate-status'),
   // Settings Sync
-  syncChannelSettings: bridge.buildProvider<IBridgeResponse, { platform: 'telegram' | 'lark' | 'dingtalk'; agent: { backend: string; customAgentId?: string; name?: string }; model?: { id: string; useModel: string } }>('channel.sync-channel-settings'),
+  syncChannelSettings: bridge.buildProvider<IBridgeResponse, { platform: string; agent: { backend: string; customAgentId?: string; name?: string }; model?: { id: string; useModel: string } }>('channel.sync-channel-settings'),
 
   // Events
   pairingRequested: bridge.buildEmitter<IChannelPairingRequest>('channel.pairing-requested'),

@@ -5,86 +5,46 @@
  */
 
 import type { IRegisteredAction, ActionHandler } from './types';
-import { ChatActionNames, createSuccessResponse, createErrorResponse } from './types';
-import { createResponseActionsKeyboard, createErrorRecoveryKeyboard } from '../plugins/telegram/TelegramKeyboards';
+import { ChatActionNames, createErrorResponse } from './types';
 import { getChannelMessageService } from '../agent/ChannelMessageService';
 
 /**
  * ChatActions - Handlers for chat/AI-related actions
  *
- * These actions involve AI processing through Gemini or other agents.
- * They handle message sending, regeneration, and continuation.
+ * Third-party channel plugins have been removed.
+ * These actions are stubs for compatibility.
  */
 
 /**
  * Handle chat.send - Send a message to AI and get response
- * Note: The actual AI processing is handled by ActionExecutor
- * This handler just prepares the response format
  */
-export const handleChatSend: ActionHandler = async (context) => {
-  // This action is special - it triggers AI processing
-  // The ActionExecutor will handle the actual AI call
-  // This handler is a placeholder for the action registration
-
-  return createSuccessResponse({
-    type: 'text',
-    text: '⏳ Thinking...',
-    parseMode: 'HTML',
-  });
+export const handleChatSend: ActionHandler = async (_context) => {
+  return createErrorResponse('Channel plugins are not available');
 };
 
 /**
  * Handle chat.regenerate - Regenerate the last AI response
  */
-export const handleChatRegenerate: ActionHandler = async (context, params) => {
-  const originalMessageId = params?.originalMessageId;
-
-  if (!originalMessageId) {
-    return createErrorResponse('Cannot find original message');
-  }
-
-  // This will trigger a regeneration
-  // The ActionExecutor will handle the actual AI call
-  return createSuccessResponse({
-    type: 'text',
-    text: '🔄 Regenerating...',
-    parseMode: 'HTML',
-  });
+export const handleChatRegenerate: ActionHandler = async (_context, _params) => {
+  return createErrorResponse('Channel plugins are not available');
 };
 
 /**
  * Handle chat.continue - Continue the AI response
  */
-export const handleChatContinue: ActionHandler = async (context, params) => {
-  // This will trigger a continuation
-  // The ActionExecutor will handle the actual AI call
-  return createSuccessResponse({
-    type: 'text',
-    text: '💬 Continuing...',
-    parseMode: 'HTML',
-  });
+export const handleChatContinue: ActionHandler = async (_context, _params) => {
+  return createErrorResponse('Channel plugins are not available');
 };
 
 /**
  * Handle action.copy - Copy response content
- * Note: Copy is handled client-side in Telegram
  */
-export const handleCopy: ActionHandler = async (context, params) => {
-  // Telegram doesn't support programmatic copy
-  // We just show a toast message
-  return {
-    success: true,
-    message: {
-      type: 'text',
-      text: '💡 Long press the message text to copy',
-      parseMode: 'HTML',
-    },
-  };
+export const handleCopy: ActionHandler = async (_context, _params) => {
+  return createErrorResponse('Channel plugins are not available');
 };
 
 /**
- * Handle tool confirmation from Telegram buttons
- * Callback data format: confirm:{callId}:{value}
+ * Handle tool confirmation
  */
 export const handleToolConfirm: ActionHandler = async (context, params) => {
   const callId = params?.callId;
@@ -92,17 +52,11 @@ export const handleToolConfirm: ActionHandler = async (context, params) => {
   const conversationId = context.conversationId;
 
   if (!callId || !value || !conversationId) {
-    console.error(`[ChatActions] Missing params - callId: ${callId}, value: ${value}, conversationId: ${conversationId}`);
     return createErrorResponse('Missing confirmation parameters');
   }
 
   try {
-    // 只调用 confirm，不发送消息
-    // Only call confirm, don't send message - agent will continue and send updates
     await getChannelMessageService().confirm(conversationId, callId, value);
-
-    // 返回成功但不带消息，agent 会继续执行并通过流回调更新消息
-    // Return success without message, agent will continue and update via stream callback
     return { success: true };
   } catch (error: any) {
     console.error('[ChatActions] Tool confirmation failed:', error);
@@ -151,7 +105,7 @@ export const chatActions: IRegisteredAction[] = [
  */
 export function buildChatResponse(
   text: string,
-  isComplete: boolean = true
+  _isComplete: boolean = true
 ): {
   text: string;
   parseMode: 'HTML' | 'MarkdownV2' | 'Markdown';
@@ -160,7 +114,7 @@ export function buildChatResponse(
   return {
     text,
     parseMode: 'HTML',
-    replyMarkup: isComplete ? createResponseActionsKeyboard() : undefined,
+    replyMarkup: undefined,
   };
 }
 
@@ -173,9 +127,9 @@ export function buildChatErrorResponse(error: string): {
   replyMarkup?: unknown;
 } {
   return {
-    text: `❌ <b>Processing Failed</b>\n\n${error}\n\nPlease retry or start a new conversation.`,
+    text: `❌ <b>Processing Failed</b>\n\n${error}`,
     parseMode: 'HTML',
-    replyMarkup: createErrorRecoveryKeyboard(),
+    replyMarkup: undefined,
   };
 }
 
