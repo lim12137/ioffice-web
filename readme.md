@@ -126,7 +126,7 @@ _Batch renaming, automatic organization, smart classification, file merging_
 - **Efficient Batch**: One-click rename, merge files, say goodbye to tedious manual tasks.
 
 <p align="center">
-  <img src="./resources/aionui sort file.gif" alt="Smart File Management Demo" width="800">
+  <img src="./resources/sort_out_folder.gif" alt="Smart File Management Demo" width="800">
 </p>
 
 ---
