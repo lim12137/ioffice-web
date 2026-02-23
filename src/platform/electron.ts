@@ -14,6 +14,7 @@ import path from 'path';
 export type OpenDialogOptions = {
   defaultPath?: string;
   properties?: string[];
+  filters?: Array<{ name: string; extensions?: string[] }>;
 };
 
 export type MenuItemConstructorOptions = {

@@ -1,6 +1,11 @@
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import path from 'path';
+import { fileURLToPath } from 'node:url';
 import type { ModuleOptions } from 'webpack';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export const rules: Required<ModuleOptions>['rules'] = [
   // 忽略 tree-sitter 相关的 .wasm 文件导入，这些在 Electron 环境中通过 externals 处理
   // Ignore tree-sitter .wasm file imports, these are handled via externals in Electron

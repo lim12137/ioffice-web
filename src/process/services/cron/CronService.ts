@@ -330,8 +330,9 @@ class CronService {
       // Get or build task from WorkerManage
       // For cron jobs, we need yoloMode=true (auto-approve)
       // Reuse existing task if possible to avoid unnecessary reconnection
-      // 对于定时任务，需�?yoloMode=true（自动批准）
-      // 尽量复用已有任务实例，避免不必要的重�?      let task;
+      // 对于定时任务，需要 yoloMode=true（自动批准）
+      // 尽量复用已有任务实例，避免不必要的重连
+      let task;
       try {
         const existingTask = WorkerManage.getTaskById(conversationId);
         if (existingTask) {

@@ -1,8 +1,14 @@
 import path from 'path';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import type { Configuration } from 'webpack';
 import webpack from 'webpack';
-import { plugins } from './webpack.plugins';
-import { rules } from './webpack.rules';
+import { plugins } from './webpack.plugins.ts';
+import { rules } from './webpack.rules.ts';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const require = createRequire(import.meta.url);
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 

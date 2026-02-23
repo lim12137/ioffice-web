@@ -1,14 +1,15 @@
 import UnoCSS from '@unocss/webpack';
 import CopyPlugin from 'copy-webpack-plugin';
-import type IForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin';
+import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import path from 'path';
+import { fileURLToPath } from 'node:url';
 import type { WebpackPluginInstance } from 'webpack';
 import webpack from 'webpack';
-import unoConfig from '../../uno.config';
+import unoConfig from '../../uno.config.ts';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const ForkTsCheckerWebpackPlugin: typeof IForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export const plugins: WebpackPluginInstance[] = [
   // 复制静态资源目录到 webpack 输出，用于打包后的应用
@@ -39,7 +40,13 @@ export const plugins: WebpackPluginInstance[] = [
   }),
   {
     apply(compiler) {
-      if (compiler.options.name?.startsWith('HtmlWebpackPlugin')) {
+      const compilerName = (compiler as { name?: string }).name;
+      const optionsName = compiler.options.name;
+      if (
+        compilerName?.startsWith('HtmlWebpackCompiler') ||
+        optionsName?.startsWith('HtmlWebpackCompiler') ||
+        optionsName?.startsWith('HtmlWebpackPlugin')
+      ) {
         return;
       }
       UnoCSS(unoConfig).apply(compiler);
