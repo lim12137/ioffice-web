@@ -1,0 +1,6 @@
+{
+  "port": 3000,
+  "allowRemote": true,
+  "adminUsername": "admin",
+  "adminPassword": "admin123456"
+}
