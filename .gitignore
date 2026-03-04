@@ -158,3 +158,4 @@ ${env.ELECTRON_CACHE}/
 # Agent Kit
 .agent
 wiki/
+.gitnexus
