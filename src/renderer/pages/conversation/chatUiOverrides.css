@@ -1,0 +1,103 @@
+/* Chat UI overrides inspired by hello-halo-reference */
+
+.chat-main-panel {
+  background: var(--color-bg-1);
+}
+
+.chat-messages-shell {
+  position: relative;
+}
+
+.chat-content-shell,
+.chat-sendbox-shell {
+  width: min(100%, 1024px);
+  margin: 0 auto;
+}
+
+.chat-input-shell {
+  position: relative;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-2) 72%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-bg-1) 70%, transparent) 0%, var(--color-bg-1) 35%);
+  backdrop-filter: blur(6px);
+}
+
+.sendbox-surface {
+  background: color-mix(in srgb, var(--color-fill-0) 88%, var(--color-bg-1) 12%);
+  border-color: color-mix(in srgb, var(--color-border-2) 80%, transparent);
+  box-shadow:
+    0 10px 28px -20px rgba(0, 0, 0, 0.5),
+    0 2px 6px -4px rgba(0, 0, 0, 0.2);
+}
+
+.sendbox-drop-overlay {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, rgb(var(--primary-1)) 45%, transparent),
+    color-mix(in srgb, rgb(var(--primary-2)) 35%, transparent)
+  );
+  color: var(--text-primary);
+}
+
+.sendbox-textarea .arco-textarea {
+  line-height: 1.52;
+  letter-spacing: 0.1px;
+}
+
+.sendbox-toolbar {
+  border-top: 1px solid color-mix(in srgb, var(--color-border-2) 62%, transparent);
+  padding-top: 10px;
+}
+
+.sendbox-action-btn {
+  box-shadow: 0 6px 14px -10px rgba(0, 0, 0, 0.4);
+}
+
+.sendbox-action-btn.arco-btn-disabled {
+  box-shadow: none;
+}
+
+.sendbox-action-btn--stop {
+  background: color-mix(in srgb, rgb(var(--primary-2)) 38%, var(--color-fill-1)) !important;
+}
+
+.chat-message-row {
+  width: min(100%, 1024px);
+}
+
+.chat-message-bubble {
+  position: relative;
+}
+
+.chat-message-content-wrapper {
+  width: 100%;
+}
+
+.chat-scroll-fade {
+  background: linear-gradient(to top, var(--color-bg-1) 0%, transparent 100%);
+}
+
+.chat-scroll-button {
+  background: color-mix(in srgb, var(--color-fill-0) 92%, var(--color-bg-1) 8%);
+  box-shadow:
+    0 12px 30px -22px rgba(0, 0, 0, 0.55),
+    0 2px 7px -5px rgba(0, 0, 0, 0.28);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  border-color: color-mix(in srgb, var(--color-border-2) 72%, transparent);
+}
+
+.chat-scroll-button:hover {
+  transform: translateY(-1px);
+  background: var(--color-bg-1);
+  box-shadow:
+    0 16px 36px -24px rgba(0, 0, 0, 0.6),
+    0 3px 10px -6px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme='dark'] .sendbox-surface {
+  background: color-mix(in srgb, var(--color-fill-1) 82%, var(--color-bg-2) 18%);
+}
+
+[data-theme='dark'] .chat-scroll-button {
+  background: color-mix(in srgb, var(--color-fill-1) 90%, var(--color-bg-2) 10%);
+}
+

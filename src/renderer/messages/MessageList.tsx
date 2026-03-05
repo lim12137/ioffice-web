@@ -11,6 +11,7 @@ import { Down } from '@icon-park/react';
 import MessageAcpPermission from '@renderer/messages/acp/MessageAcpPermission';
 import MessageAcpToolCall from '@renderer/messages/acp/MessageAcpToolCall';
 import MessageAgentStatus from '@renderer/messages/MessageAgentStatus';
+import '@renderer/pages/conversation/chatUiOverrides.css';
 import classNames from 'classnames';
 import React, { createContext, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
