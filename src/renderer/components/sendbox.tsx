@@ -234,11 +234,13 @@ const SendBox: React.FC<{
     }
   };
 
+  const canSend = !disabled && !loading && !isLoading && Boolean(input.trim() || domSnippets.length > 0);
+
   return (
-    <div className={className}>
+    <div className={`chat-sendbox-shell ${className ?? ''}`}>
       <div
         ref={containerRef}
-        className={`relative p-16px border-3 b bg-dialog-fill-0 b-solid rd-20px flex flex-col overflow-hidden ${isFileDragging ? 'b-dashed' : ''}`}
+        className={`sendbox-surface relative p-14px border-3 b b-solid rd-20px flex flex-col overflow-hidden ${isFileDragging ? 'b-dashed' : ''}`}
         style={{
           transition: 'box-shadow 0.25s ease, border-color 0.25s ease',
           ...(isFileDragging
@@ -255,6 +257,13 @@ const SendBox: React.FC<{
         }}
         {...dragHandlers}
       >
+        {isFileDragging && (
+          <div className='sendbox-drop-overlay absolute inset-0 z-20 flex flex-col items-center justify-center pointer-events-none'>
+            <div className='text-15px font-600'>{t('conversation.sendbox.dropFilesTitle', { defaultValue: 'Drop files here' })}</div>
+            <div className='text-12px mt-4px opacity-80'>{t('conversation.sendbox.dropFilesHint', { defaultValue: 'Files will be attached to the next message' })}</div>
+          </div>
+        )}
+
         <div style={{ width: '100%' }}>
           {prefix}
           {context}
@@ -269,24 +278,22 @@ const SendBox: React.FC<{
             </div>
           )}
         </div>
-        <div className={isSingleLine ? 'flex items-center gap-2 w-full min-w-0 overflow-hidden' : 'w-full overflow-hidden'}>
-          {isSingleLine && <div className='flex-shrink-0 sendbox-tools'>{tools}</div>}
+        <div className='w-full overflow-hidden'>
           <Input.TextArea
             autoFocus
             disabled={disabled}
             value={input}
             placeholder={placeholder}
-            className='pl-0 pr-0 !b-none focus:shadow-none m-0 !bg-transparent !focus:bg-transparent !hover:bg-transparent lh-[20px] !resize-none text-14px'
+            className='sendbox-textarea pl-0 pr-0 !b-none focus:shadow-none m-0 !bg-transparent !focus:bg-transparent !hover:bg-transparent lh-[20px] !resize-none text-14px'
             style={{
-              width: isSingleLine ? 'auto' : '100%',
-              flex: isSingleLine ? 1 : 'none',
+              width: '100%',
               minWidth: 0,
               maxWidth: '100%',
               marginLeft: 0,
               marginRight: 0,
-              marginBottom: isSingleLine ? 0 : '8px',
-              height: isSingleLine ? '20px' : 'auto',
-              minHeight: isSingleLine ? '20px' : '80px',
+              marginBottom: 0,
+              height: isSingleLine ? '24px' : 'auto',
+              minHeight: isSingleLine ? '24px' : '80px',
               overflowY: isSingleLine ? 'hidden' : 'auto',
               overflowX: 'hidden',
               whiteSpace: isSingleLine ? 'nowrap' : 'pre-wrap',
@@ -301,47 +308,30 @@ const SendBox: React.FC<{
             onFocus={handleInputFocus}
             onBlur={handleInputBlur}
             {...compositionHandlers}
-            autoSize={isSingleLine ? false : { minRows: 1, maxRows: 10 }}
+            autoSize={isSingleLine ? false : { minRows: 2, maxRows: 10 }}
             onKeyDown={createKeyDownHandler(sendMessageHandler)}
           ></Input.TextArea>
-          {isSingleLine && (
-            <div className='flex items-center gap-2'>
-              {sendButtonPrefix}
-              {isLoading || loading ? (
-                <Button shape='circle' type='secondary' className='bg-animate' icon={<div className='mx-auto size-12px bg-6'></div>} onClick={stopHandler}></Button>
-              ) : (
-                <Button
-                  shape='circle'
-                  type='primary'
-                  icon={<ArrowUp theme='outline' size='14' fill='white' strokeWidth={2} />}
-                  onClick={() => {
-                    sendMessageHandler();
-                  }}
-                />
-              )}
-            </div>
-          )}
         </div>
-        {!isSingleLine && (
-          <div className='flex items-center justify-between gap-2 w-full'>
-            <div className='sendbox-tools'>{tools}</div>
-            <div className='flex items-center gap-2'>
-              {sendButtonPrefix}
-              {isLoading || loading ? (
-                <Button shape='circle' type='secondary' className='bg-animate' icon={<div className='mx-auto size-12px bg-6'></div>} onClick={stopHandler}></Button>
-              ) : (
-                <Button
-                  shape='circle'
-                  type='primary'
-                  icon={<ArrowUp theme='outline' size='14' fill='white' strokeWidth={2} />}
-                  onClick={() => {
-                    sendMessageHandler();
-                  }}
-                />
-              )}
-            </div>
+        <div className='sendbox-toolbar flex items-center justify-between gap-2 w-full mt-10px'>
+          <div className='sendbox-tools flex items-center gap-6px'>{tools}</div>
+          <div className='flex items-center gap-2'>
+            {sendButtonPrefix}
+            {isLoading || loading ? (
+              <Button shape='circle' type='secondary' className='bg-animate sendbox-action-btn sendbox-action-btn--stop' icon={<div className='mx-auto size-12px bg-6'></div>} onClick={stopHandler}></Button>
+            ) : (
+              <Button
+                shape='circle'
+                type='primary'
+                className='sendbox-action-btn'
+                disabled={!canSend}
+                icon={<ArrowUp theme='outline' size='14' fill='white' strokeWidth={2} />}
+                onClick={() => {
+                  sendMessageHandler();
+                }}
+              />
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

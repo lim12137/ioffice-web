@@ -96,9 +96,9 @@ const MessageText: React.FC<{ message: IMessageText }> = ({ message }) => {
 
   return (
     <>
-      <div className={classNames('flex flex-col group', isUserMessage ? 'items-end' : 'items-start')}>
+      <div className={classNames('flex flex-col group message-content-wrapper chat-message-content-wrapper', isUserMessage ? 'items-end' : 'items-start')}>
         {files.length > 0 && (
-          <div className={classNames('mt-6px', { 'self-end': isUserMessage })}>
+          <div className={classNames('mt-6px mb-8px', { 'self-end': isUserMessage })}>
             {files.length === 1 ? (
               <div className='flex items-center'>
                 <FilePreview path={files[0]} onRemove={() => undefined} readonly />
@@ -113,9 +113,14 @@ const MessageText: React.FC<{ message: IMessageText }> = ({ message }) => {
           </div>
         )}
         <div
-          className={classNames('rd-8px rd-tr-2px [&>p:first-child]:mt-0px [&>p:last-child]:mb-0px md:max-w-780px', {
-            'bg-aou-2 p-8px': isUserMessage,
+          className={classNames('message-content chat-message-bubble rd-16px p-12px transition-all duration-300', {
+            'bg-aou-2': isUserMessage,
+            'hover:shadow-md': !isUserMessage,
           })}
+          style={{
+            maxWidth: 'min(90%, 900px)',
+            wordBreak: 'break-word',
+          }}
         >
           {/* JSON 内容使用折叠组件 Use CollapsibleContent for JSON content */}
           {json ? (
@@ -127,7 +132,7 @@ const MessageText: React.FC<{ message: IMessageText }> = ({ message }) => {
           )}
         </div>
         <div
-          className={classNames('h-32px flex items-center mt-4px', {
+          className={classNames('h-28px flex items-center mt-6px opacity-0 group-hover:opacity-100 transition-opacity duration-200', {
             'justify-end': isUserMessage,
             'justify-start': !isUserMessage,
           })}
@@ -135,7 +140,7 @@ const MessageText: React.FC<{ message: IMessageText }> = ({ message }) => {
           {copyButton}
         </div>
       </div>
-      {showCopyAlert && <Alert type='success' content={t('messages.copySuccess')} showIcon className='fixed top-20px left-50% transform -translate-x-50% z-9999 w-max max-w-[80%]' style={{ boxShadow: '0px 2px 12px rgba(0,0,0,0.12)' }} closable={false} />}
+      {showCopyAlert && <Alert type='success' content={t('messages.copySuccess')} showIcon className='fixed top-20px left-50% transform -translate-x-50% z-9999 w-max max-w-[80%]' style={{ boxShadow: '0px 4px 20px rgba(0,0,0,0.15)' }} closable={false} />}
     </>
   );
 };

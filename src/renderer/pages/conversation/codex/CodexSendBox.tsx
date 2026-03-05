@@ -384,107 +384,111 @@ const CodexSendBox: React.FC<{ conversation_id: string }> = ({ conversation_id }
   };
 
   return (
-    <div className='max-w-800px w-full mx-auto flex flex-col mt-auto mb-16px'>
+    <div className='w-full mx-auto flex flex-col mt-auto mb-8px px-16px sm:px-20px'>
       <ThoughtDisplay thought={thought} running={aiProcessing || running} onStop={handleStop} />
 
-      <SendBox
-        value={content}
-        onChange={(val) => {
-          // Only allow content changes when not waiting for session or thinking
-          if (!aiProcessing) {
-            setContent(val);
+      <div className='sendbox-container relative bg-fill-0 rounded-20px border border-color-border-2 shadow-sm transition-all duration-300 hover:shadow-md focus-within:shadow-lg focus-within:border-primary-5'>
+        <SendBox
+          value={content}
+          onChange={(val) => {
+            // Only allow content changes when not waiting for session or thinking
+            if (!aiProcessing) {
+              setContent(val);
+            }
+          }}
+          loading={running || aiProcessing}
+          disabled={aiProcessing}
+          className='z-10'
+          placeholder={
+            aiProcessing
+              ? t('conversation.chat.processing')
+              : t('acp.sendbox.placeholder', {
+                  backend: 'Codex',
+                  defaultValue: `Send message to Codex...`,
+                })
           }
-        }}
-        loading={running || aiProcessing}
-        disabled={aiProcessing}
-        className='z-10'
-        placeholder={
-          aiProcessing
-            ? t('conversation.chat.processing')
-            : t('acp.sendbox.placeholder', {
-                backend: 'Codex',
-                defaultValue: `Send message to Codex...`,
-              })
-        }
-        onStop={handleStop}
-        onFilesAdded={handleFilesAdded}
-        supportedExts={allSupportedExts}
-        defaultMultiLine={true}
-        lockMultiLine={true}
-        tools={
-          <div className='flex items-center gap-4px'>
-            <Button
-              type='secondary'
-              shape='circle'
-              icon={<Plus theme='outline' size='14' strokeWidth={2} fill={iconColors.primary} />}
-              onClick={() => {
-                void ipcBridge.dialog.showOpen.invoke({ properties: ['openFile', 'multiSelections'] }).then((files) => {
-                  if (files && files.length > 0) {
-                    setUploadFile([...uploadFile, ...files]);
-                  }
-                });
-              }}
-            />
-            <AgentModeSelector backend='codex' conversationId={conversation_id} compact />
-          </div>
-        }
-        prefix={
-          <>
-            {/* Files on top */}
-            {(uploadFile.length > 0 || atPath.some((item) => (typeof item === 'string' ? true : item.isFile))) && (
-              <HorizontalFileList>
-                {uploadFile.map((path) => (
-                  <FilePreview key={path} path={path} onRemove={() => setUploadFile(uploadFile.filter((v) => v !== path))} />
-                ))}
-                {atPath.map((item) => {
-                  const isFile = typeof item === 'string' ? true : item.isFile;
-                  const path = typeof item === 'string' ? item : item.path;
-                  if (isFile) {
-                    return (
-                      <FilePreview
-                        key={path}
-                        path={path}
-                        onRemove={() => {
-                          const newAtPath = atPath.filter((v) => (typeof v === 'string' ? v !== path : v.path !== path));
-                          emitter.emit('codex.selected.file', newAtPath);
-                          setAtPath(newAtPath);
-                        }}
-                      />
-                    );
-                  }
-                  return null;
-                })}
-              </HorizontalFileList>
-            )}
-            {/* Folder tags below */}
-            {atPath.some((item) => (typeof item === 'string' ? false : !item.isFile)) && (
-              <div className='flex flex-wrap items-center gap-8px mb-8px'>
-                {atPath.map((item) => {
-                  if (typeof item === 'string') return null;
-                  if (!item.isFile) {
-                    return (
-                      <Tag
-                        key={item.path}
-                        color='blue'
-                        closable
-                        onClose={() => {
-                          const newAtPath = atPath.filter((v) => (typeof v === 'string' ? true : v.path !== item.path));
-                          emitter.emit('codex.selected.file', newAtPath);
-                          setAtPath(newAtPath);
-                        }}
-                      >
-                        {item.name}
-                      </Tag>
-                    );
-                  }
-                  return null;
-                })}
-              </div>
-            )}
-          </>
-        }
-        onSend={onSendHandler}
-      ></SendBox>
+          onStop={handleStop}
+          onFilesAdded={handleFilesAdded}
+          supportedExts={allSupportedExts}
+          defaultMultiLine={true}
+          lockMultiLine={true}
+          tools={
+            <div className='flex items-center gap-6px'>
+              <Button
+                type='secondary'
+                shape='circle'
+                className='hover:scale-105 transition-transform duration-200'
+                icon={<Plus theme='outline' size='14' strokeWidth={2} fill={iconColors.primary} />}
+                onClick={() => {
+                  void ipcBridge.dialog.showOpen.invoke({ properties: ['openFile', 'multiSelections'] }).then((files) => {
+                    if (files && files.length > 0) {
+                      setUploadFile([...uploadFile, ...files]);
+                    }
+                  });
+                }}
+              />
+              <AgentModeSelector backend='codex' conversationId={conversation_id} compact />
+            </div>
+          }
+          prefix={
+            <>
+              {/* Files on top */}
+              {(uploadFile.length > 0 || atPath.some((item) => (typeof item === 'string' ? true : item.isFile))) && (
+                <HorizontalFileList>
+                  {uploadFile.map((path) => (
+                    <FilePreview key={path} path={path} onRemove={() => setUploadFile(uploadFile.filter((v) => v !== path))} />
+                  ))}
+                  {atPath.map((item) => {
+                    const isFile = typeof item === 'string' ? true : item.isFile;
+                    const path = typeof item === 'string' ? item : item.path;
+                    if (isFile) {
+                      return (
+                        <FilePreview
+                          key={path}
+                          path={path}
+                          onRemove={() => {
+                            const newAtPath = atPath.filter((v) => (typeof v === 'string' ? v !== path : v.path !== path));
+                            emitter.emit('codex.selected.file', newAtPath);
+                            setAtPath(newAtPath);
+                          }}
+                        />
+                      );
+                    }
+                    return null;
+                  })}
+                </HorizontalFileList>
+              )}
+              {/* Folder tags below */}
+              {atPath.some((item) => (typeof item === 'string' ? false : !item.isFile)) && (
+                <div className='flex flex-wrap items-center gap-8px mb-8px'>
+                  {atPath.map((item) => {
+                    if (typeof item === 'string') return null;
+                    if (!item.isFile) {
+                      return (
+                        <Tag
+                          key={item.path}
+                          color='blue'
+                          closable
+                          className='rounded-full px-10px py-4px transition-all duration-200 hover:shadow-sm'
+                          onClose={() => {
+                            const newAtPath = atPath.filter((v) => (typeof v === 'string' ? true : v.path !== item.path));
+                            emitter.emit('codex.selected.file', newAtPath);
+                            setAtPath(newAtPath);
+                          }}
+                        >
+                          {item.name}
+                        </Tag>
+                      );
+                    }
+                    return null;
+                  })}
+                </div>
+              )}
+            </>
+          }
+          onSend={onSendHandler}
+        ></SendBox>
+      </div>
     </div>
   );
 };

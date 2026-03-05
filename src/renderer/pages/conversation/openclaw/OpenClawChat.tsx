@@ -5,7 +5,6 @@
  */
 
 import { ConversationProvider } from '@/renderer/context/ConversationContext';
-import FlexFullContainer from '@renderer/components/FlexFullContainer';
 import MessageList from '@renderer/messages/MessageList';
 import { MessageListProvider, useMessageLstCache } from '@renderer/messages/hooks';
 import HOC from '@renderer/utils/HOC';
@@ -25,13 +24,19 @@ const OpenClawChat: React.FC<{
   }, [workspace]);
   return (
     <ConversationProvider value={{ conversationId: conversation_id, workspace, type: 'openclaw-gateway' }}>
-      <div className='flex-1 flex flex-col px-20px'>
-        <FlexFullContainer>
-          <MessageList className='flex-1'></MessageList>
-        </FlexFullContainer>
-        <ConversationChatConfirm conversation_id={conversation_id}>
-          <OpenClawSendBox conversation_id={conversation_id} />
-        </ConversationChatConfirm>
+      <div className='chat-main-panel flex-1 flex flex-col w-full min-w-0 overflow-hidden h-full'>
+        {/* 聊天记录区域 - 单一滚动层 */}
+        <div className='chat-messages-shell flex-1 min-h-0 px-16px sm:px-20px pt-10px'>
+          <div className='chat-content-shell h-full'>
+            <MessageList className='h-full' />
+          </div>
+        </div>
+        {/* 聊天框区域 - 固定底部 */}
+        <div className='chat-input-shell flex-shrink-0 w-full pb-12px sm:pb-16px'>
+          <ConversationChatConfirm conversation_id={conversation_id}>
+            <OpenClawSendBox conversation_id={conversation_id} />
+          </ConversationChatConfirm>
+        </div>
       </div>
     </ConversationProvider>
   );

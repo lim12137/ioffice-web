@@ -469,7 +469,7 @@ const OpenClawSendBox: React.FC<{ conversation_id: string }> = ({ conversation_i
   };
 
   return (
-    <div className='max-w-800px w-full mx-auto flex flex-col mt-auto mb-16px'>
+    <div className='w-full mx-auto flex flex-col mt-auto mb-8px px-16px sm:px-20px'>
       <ThoughtDisplay thought={thought} running={aiProcessing} onStop={handleStop} />
 
       <SendBox
